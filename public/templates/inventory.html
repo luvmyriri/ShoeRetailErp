@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Management - Shoe Retail ERP</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="alert-container"></div>
+    
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <i class="fas fa-shoe-prints"></i>
+                <span>Shoe Retail ERP</span>
+            </div>
+            <ul class="navbar-nav">
+                <li><a href="index.php?page=dashboard">Dashboard</a></li>
+                <li><a href="index.php?page=inventory" class="active">Inventory</a></li>
+                <li><a href="index.php?page=sales">Sales</a></li>
+                <li><a href="index.php?page=procurement">Procurement</a></li>
+                <li><a href="index.php?page=accounting">Accounting</a></li>
+                <li><a href="index.php?page=customer_management">Customers</a></li>
+            </ul>
+            <div class="navbar-right">
+                <div class="navbar-search">
+                    <input type="text" placeholder="Search products...">
+                </div>
+                <div class="dropdown">
+                    <div class="navbar-avatar"><i class="fas fa-user"></i></div>
+                    <div class="dropdown-menu">
+                        <button class="dropdown-item"><i class="fas fa-user-circle"></i> Profile</button>
+                        <button class="dropdown-item"><i class="fas fa-cog"></i> Settings</button>
+                        <div class="dropdown-divider"></div>
+                        <a href="logout.php" class="dropdown-item"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header"><h5 style="color: white; margin: 0;">Menu</h5></div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-item">
+                <a href="index.php?page=dashboard" class="sidebar-link">
+                    <span class="sidebar-icon"><i class="fas fa-chart-line"></i></span>
+                    <span class="sidebar-text">Dashboard</span>
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a href="index.php?page=sales" class="sidebar-link">
+                    <span class="sidebar-icon"><i class="fas fa-shopping-cart"></i></span>
+                    <span class="sidebar-text">Sales</span>
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a href="index.php?page=inventory" class="sidebar-link active">
+                    <span class="sidebar-icon"><i class="fas fa-boxes"></i></span>
+                    <span class="sidebar-text">Inventory</span>
+                </a>
+                <ul class="sidebar-submenu">
+                    <li class="sidebar-item"><a href="#" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-layer-group"></i></span><span class="sidebar-text">Stock Levels</span></a></li>
+                    <li class="sidebar-item"><a href="#" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-exchange-alt"></i></span><span class="sidebar-text">Transfers</span></a></li>
+                    <li class="sidebar-item"><a href="#" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-bell"></i></span><span class="sidebar-text">Alerts</span></a></li>
+                </ul>
+            </li>
+            <li class="sidebar-item">
+                <a href="index.php?page=procurement" class="sidebar-link">
+                    <span class="sidebar-icon"><i class="fas fa-truck"></i></span>
+                    <span class="sidebar-text">Procurement</span>
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a href="index.php?page=accounting" class="sidebar-link">
+                    <span class="sidebar-icon"><i class="fas fa-calculator"></i></span>
+                    <span class="sidebar-text">Accounting</span>
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a href="index.php?page=customer_management" class="sidebar-link">
+                    <span class="sidebar-icon"><i class="fas fa-users"></i></span>
+                    <span class="sidebar-text">Customers</span>
+                </a>
+            </li>
+            <li class="sidebar-item">
+                <a href="?page=customer_management" class="sidebar-link">
+                    <span class="sidebar-icon"><i class="fas fa-users"></i></span>
+                    <span class="sidebar-text">Customers</span>
+                </a>
+            </li>
+        </ul>
+    </aside>
+    
+    <!-- Main Content -->
+    <div class="main-wrapper">
+        <main class="main-content">
+            <div class="page-header">
+                <div class="page-header-title">
+                    <h1>Inventory Management</h1>
+                    <div class="page-header-breadcrumb">
+                        <a href="?page=dashboard">Home</a> / Inventory
+                    </div>
+                </div>
+                <div class="page-header-actions">
+                    <button class="btn btn-primary" data-toggle="modal" data-target="addProductModal">
+                        <i class="fas fa-plus"></i> Add Product
+                    </button>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <ul class="nav-tabs">
+                <li><a href="#" class="nav-link active" data-tab="stockTab">Stock Levels</a></li>
+                <li><a href="#" class="nav-link" data-tab="transferTab">Stock Transfers</a></li>
+                <li><a href="#" class="nav-link" data-tab="alertsTab">Low Stock Alerts</a></li>
+                <li><a href="#" class="nav-link" data-tab="reportsTab">Reports</a></li>
+            </ul>
+
+            <!-- Stock Levels Tab -->
+            <div id="stockTab" class="tab-pane active">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Current Stock Levels</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Product Code</th>
+                                                <th>Brand</th>
+                                                <th>Model</th>
+                                                <th>Size</th>
+                                                <th>Current Stock</th>
+                                                <th>Min Level</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>#PRD-001</td>
+                                                <td>Nike</td>
+                                                <td>Air Max 90</td>
+                                                <td>10</td>
+                                                <td><span class="badge badge-success">45</span></td>
+                                                <td>20</td>
+                                                <td><span class="badge badge-success">Optimal</span></td>
+                                                <td><button class="btn btn-sm btn-outline">Edit</button></td>
+                                            </tr>
+                                            <tr>
+                                                <td>#PRD-002</td>
+                                                <td>Adidas</td>
+                                                <td>Stan Smith</td>
+                                                <td>9</td>
+                                                <td><span class="badge badge-warning">15</span></td>
+                                                <td>20</td>
+                                                <td><span class="badge badge-warning">Low Stock</span></td>
+                                                <td><button class="btn btn-sm btn-outline">Edit</button></td>
+                                            </tr>
+                                            <tr>
+                                                <td>#PRD-003</td>
+                                                <td>Puma</td>
+                                                <td>RS-X</td>
+                                                <td>11</td>
+                                                <td><span class="badge badge-danger">5</span></td>
+                                                <td>20</td>
+                                                <td><span class="badge badge-danger">Critical</span></td>
+                                                <td><button class="btn btn-sm btn-outline">Edit</button></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stock Transfers Tab -->
+            <div id="transferTab" class="tab-pane">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Stock Transfer History</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Transfer ID</th>
+                                                <th>From Store</th>
+                                                <th>To Store</th>
+                                                <th>Product</th>
+                                                <th>Quantity</th>
+                                                <th>Date</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>#TRN-001</td>
+                                                <td>Main Store</td>
+                                                <td>Branch A</td>
+                                                <td>Nike Air Max 90 (Size 10)</td>
+                                                <td>10</td>
+                                                <td>Oct 20, 2024</td>
+                                                <td><span class="badge badge-success">Completed</span></td>
+                                            </tr>
+                                            <tr>
+                                                <td>#TRN-002</td>
+                                                <td>Branch B</td>
+                                                <td>Main Store</td>
+                                                <td>Adidas Stan Smith (Size 9)</td>
+                                                <td>5</td>
+                                                <td>Oct 19, 2024</td>
+                                                <td><span class="badge badge-success">Completed</span></td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Low Stock Alerts Tab -->
+            <div id="alertsTab" class="tab-pane">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="alert alert-warning">
+                            <div class="alert-icon">⚠</div>
+                            <div>You have 3 products with low stock levels. Consider placing purchase orders.</div>
+                        </div>
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Low Stock Alert Details</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <h5>Adidas Stan Smith (Size 9)</h5>
+                                                <p><strong>Current Stock:</strong> 15</p>
+                                                <p><strong>Minimum Level:</strong> 20</p>
+                                                <p><strong>Shortage:</strong> 5 units</p>
+                                                <button class="btn btn-primary btn-sm btn-block">Order Now</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card">
+                                            <div class="card-body">
+                                                <h5>Puma RS-X (Size 11)</h5>
+                                                <p><strong>Current Stock:</strong> 5</p>
+                                                <p><strong>Minimum Level:</strong> 20</p>
+                                                <p><strong>Shortage:</strong> 15 units</p>
+                                                <button class="btn btn-danger btn-sm btn-block">Order Urgently</button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Reports Tab -->
+            <div id="reportsTab" class="tab-pane">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Inventory Reports</h3>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="stat-card">
+                                            <div class="stat-icon">📦</div>
+                                            <div class="stat-value">1,234</div>
+                                            <div class="stat-label">Total Products</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="stat-card">
+                                            <div class="stat-icon">⚠️</div>
+                                            <div class="stat-value">45</div>
+                                            <div class="stat-label">Low Stock Items</div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="stat-card">
+                                            <div class="stat-icon">💰</div>
+                                            <div class="stat-value">$234,567</div>
+                                            <div class="stat-label">Inventory Value</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Product Modal -->
+    <div id="addProductModal" class="modal">
+        <div class="modal-header">
+            <h3>Add New Product</h3>
+            <button class="modal-close" data-dismiss="modal">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form>
+                <div class="form-group">
+                    <label class="form-label">Product Code</label>
+                    <input type="text" class="form-control" placeholder="e.g., PRD-001">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Brand</label>
+                    <input type="text" class="form-control" placeholder="e.g., Nike">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Model</label>
+                    <input type="text" class="form-control" placeholder="e.g., Air Max 90">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Size</label>
+                    <input type="text" class="form-control" placeholder="e.g., 10">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Initial Stock</label>
+                    <input type="number" class="form-control" placeholder="0">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Minimum Stock Level</label>
+                    <input type="number" class="form-control" placeholder="20">
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" data-dismiss="modal">Cancel</button>
+            <button class="btn btn-primary">Add Product</button>
+        </div>
+    </div>
+
+    <div class="modal-backdrop"></div>
+    <script src="js/app.js"></script>
+</body>
+</html>

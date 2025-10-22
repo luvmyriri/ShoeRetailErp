@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Shoe Retail ERP</title>
+    
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Alert Container -->
+    <div class="alert-container"></div>
+    
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand">
+                <i class="fas fa-shoe-prints"></i>
+                <span>Shoe Retail ERP</span>
+            </div>
+            
+            <ul class="navbar-nav">
+                <li><a href="/ShoeRetailErp/public/index.php?page=dashboard" class="active">Dashboard</a></li>
+                <li><a href="/ShoeRetailErp/public/index.php?page=inventory">Inventory</a></li>
+                <li><a href="/ShoeRetailErp/public/index.php?page=sales">Sales</a></li>
+                <li><a href="/ShoeRetailErp/public/index.php?page=procurement">Procurement</a></li>
+                <li><a href="/ShoeRetailErp/public/index.php?page=accounting">Accounting</a></li>
+                <li><a href="/ShoeRetailErp/public/index.php?page=customer_management">Customers</a></li>
+            </ul>
+            
+            <div class="navbar-right">
+                <div class="navbar-search">
+                    <input type="text" placeholder="Search... (Ctrl+K)" id="globalSearch">
+                </div>
+                
+                <div style="position: relative;">
+                    <button class="btn btn-outline btn-sm" style="width: 40px; height: 40px; padding: 0; border-radius: 50%;" data-tooltip="Notifications" data-tooltip-position="bottom">
+                        <i class="fas fa-bell"></i>
+                        <span data-notification-count="3" style="position: absolute; top: -5px; right: -5px; background: #E74C3C; color: white; border-radius: 50%; width: 20px; height: 20px; font-size: 12px; display: flex; align-items: center; justify-content: center; font-weight: bold;">3</span>
+                    </button>
+                </div>
+                
+                <div class="dropdown">
+                    <div class="navbar-avatar" data-tooltip="User Menu" data-tooltip-position="bottom">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="dropdown-menu">
+                        <button class="dropdown-item">
+                            <i class="fas fa-user-circle"></i> Profile
+                        </button>
+                        <button class="dropdown-item">
+                            <i class="fas fa-cog"></i> Settings
+                        </button>
+                        <div class="dropdown-divider"></div>
+                        <a href="/ShoeRetailErp/logout.php" class="dropdown-item">
+                            <i class="fas fa-sign-out-alt"></i> Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Sidebar -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <h5 style="color: white; margin: 0;">Menu</h5>
+        </div>
+        
+        <ul class="sidebar-menu">
+            <!-- Dashboard -->
+            <li class="sidebar-item">
+                <a href="/ShoeRetailErp/public/index.php?page=dashboard" class="sidebar-link active">
+                    <span class="sidebar-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </span>
+                    <span class="sidebar-text">Dashboard</span>
+                </a>
+            </li>
+            
+            <!-- Sales -->
+            <li class="sidebar-item">
+                <a href="/ShoeRetailErp/public/index.php?page=sales" class="sidebar-link">
+                    <span class="sidebar-icon">
+                        <i class="fas fa-shopping-cart"></i>
+                    </span>
+                    <span class="sidebar-text">Sales</span>
+                </a>
+            </li>
+            
+            <!-- Inventory -->
+            <li class="sidebar-item">
+                <a href="/ShoeRetailErp/public/index.php?page=inventory" class="sidebar-link">
+                    <span class="sidebar-icon">
+                        <i class="fas fa-boxes"></i>
+                    </span>
+                    <span class="sidebar-text">Inventory</span>
+                </a>
+            </li>
+            
+            <!-- Procurement -->
+            <li class="sidebar-item">
+                <a href="/ShoeRetailErp/public/index.php?page=procurement" class="sidebar-link">
+                    <span class="sidebar-icon">
+                        <i class="fas fa-truck"></i>
+                    </span>
+                    <span class="sidebar-text">Procurement</span>
+                </a>
+            </li>
+            
+            <!-- Accounting -->
+            <li class="sidebar-item">
+                <a href="/ShoeRetailErp/public/index.php?page=accounting" class="sidebar-link">
+                    <span class="sidebar-icon">
+                        <i class="fas fa-calculator"></i>
+                    </span>
+                    <span class="sidebar-text">Accounting</span>
+                </a>
+            </li>
+            
+            <!-- Customer Management -->
+            <li class="sidebar-item">
+                <a href="/ShoeRetailErp/public/index.php?page=customer_management" class="sidebar-link">
+                    <span class="sidebar-icon">
+                        <i class="fas fa-users"></i>
+                    </span>
+                    <span class="sidebar-text">Customers</span>
+                </a>
+            </li>
+            
+            <!-- Settings -->
+            <li class="sidebar-item" style="margin-top: auto; border-top: 1px solid var(--gray-800); padding-top: 1rem;">
+                <a href="#" class="sidebar-link">
+                    <span class="sidebar-icon">
+                        <i class="fas fa-cog"></i>
+                    </span>
+                    <span class="sidebar-text">Settings</span>
+                </a>
+            </li>
+        </ul>
+    </aside>
+    
+    <!-- Main Content -->
+    <div class="main-wrapper">
+        <main class="main-content">
+            <!-- Page Header -->
+            <div class="page-header">
+                <div class="page-header-title">
+                    <h1>Dashboard</h1>
+                    <div class="page-header-breadcrumb">
+                        <a href="#">Home</a> / Dashboard
+                    </div>
+                </div>
+                <div class="page-header-actions">
+                    <button class="btn btn-outline">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <button class="btn btn-primary">
+                        <i class="fas fa-plus"></i> New
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Statistics Cards -->
+            <div class="row" style="margin-bottom: 2rem;">
+                <div class="col-3">
+                    <div class="stat-card">
+                        <div class="stat-icon">📊</div>
+                        <div class="stat-value">$45,231</div>
+                        <div class="stat-label">Total Revenue</div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="stat-card">
+                        <div class="stat-icon">👥</div>
+                        <div class="stat-value">1,234</div>
+                        <div class="stat-label">Total Customers</div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="stat-card">
+                        <div class="stat-icon">📦</div>
+                        <div class="stat-value">5,678</div>
+                        <div class="stat-label">Items in Stock</div>
+                    </div>
+                </div>
+                <div class="col-3">
+                    <div class="stat-card">
+                        <div class="stat-icon">🎯</div>
+                        <div class="stat-value">89%</div>
+                        <div class="stat-label">Order Fulfillment</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Main Content Grid -->
+            <div class="row">
+                <!-- Recent Sales -->
+                <div class="col-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Recent Sales</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Order ID</th>
+                                            <th>Customer</th>
+                                            <th>Amount</th>
+                                            <th>Date</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>#ORD-2024-001</td>
+                                            <td>John Doe</td>
+                                            <td>$299.99</td>
+                                            <td>Oct 20, 2024</td>
+                                            <td><span class="badge badge-success">Completed</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td>#ORD-2024-002</td>
+                                            <td>Jane Smith</td>
+                                            <td>$599.99</td>
+                                            <td>Oct 20, 2024</td>
+                                            <td><span class="badge badge-info">Processing</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td>#ORD-2024-003</td>
+                                            <td>Mike Johnson</td>
+                                            <td>$149.99</td>
+                                            <td>Oct 19, 2024</td>
+                                            <td><span class="badge badge-warning">Pending</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td>#ORD-2024-004</td>
+                                            <td>Sarah Williams</td>
+                                            <td>$749.99</td>
+                                            <td>Oct 19, 2024</td>
+                                            <td><span class="badge badge-success">Completed</span></td>
+                                        </tr>
+                                        <tr>
+                                            <td>#ORD-2024-005</td>
+                                            <td>Tom Brown</td>
+                                            <td>$399.99</td>
+                                            <td>Oct 18, 2024</td>
+                                            <td><span class="badge badge-danger">Cancelled</span></td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <a href="#" style="color: var(--primary-color); text-decoration: none;">View All Orders →</a>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Quick Actions & Info -->
+                <div class="col-4">
+                    <!-- Quick Stats -->
+                    <div class="card" style="margin-bottom: 1.5rem;">
+                        <div class="card-header">
+                            <h4>Quick Stats</h4>
+                        </div>
+                        <div class="card-body">
+                            <div style="margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span>Inventory Status</span>
+                                    <span style="font-weight: bold;">92%</span>
+                                </div>
+                                <div style="background: #E5E7EB; height: 8px; border-radius: 4px; overflow: hidden;">
+                                    <div style="background: #27AE60; height: 100%; width: 92%;"></div>
+                                </div>
+                            </div>
+                            <div style="margin-bottom: 1rem;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span>Customer Satisfaction</span>
+                                    <span style="font-weight: bold;">4.5/5</span>
+                                </div>
+                                <div style="background: #E5E7EB; height: 8px; border-radius: 4px; overflow: hidden;">
+                                    <div style="background: #F39C12; height: 100%; width: 90%;"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                                    <span>Sales Target</span>
+                                    <span style="font-weight: bold;">78%</span>
+                                </div>
+                                <div style="background: #E5E7EB; height: 8px; border-radius: 4px; overflow: hidden;">
+                                    <div style="background: #3498DB; height: 100%; width: 78%;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Upcoming Tasks -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h4>Upcoming Tasks</h4>
+                        </div>
+                        <div class="card-body">
+                            <div style="display: flex; gap: 1rem; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #E5E7EB;">
+                                <input type="checkbox" style="width: 20px; height: 20px;">
+                                <div>
+                                    <div style="font-weight: 500;">Inventory Audit</div>
+                                    <small style="color: #6B7280;">Due: Oct 25, 2024</small>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 1rem; margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #E5E7EB;">
+                                <input type="checkbox" style="width: 20px; height: 20px;">
+                                <div>
+                                    <div style="font-weight: 500;">Monthly Report</div>
+                                    <small style="color: #6B7280;">Due: Oct 30, 2024</small>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 1rem;">
+                                <input type="checkbox" style="width: 20px; height: 20px;">
+                                <div>
+                                    <div style="font-weight: 500;">Staff Meeting</div>
+                                    <small style="color: #6B7280;">Due: Oct 22, 2024</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Modal Backdrop -->
+    <div class="modal-backdrop"></div>
+    
+    <!-- Scripts -->
+    <script src="js/app.js"></script>
+    <script>
+        // Global search functionality
+        document.getElementById('globalSearch').addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                ERP.showAlert('Searching for: ' + this.value, 'info');
+            }
+        });
+        
+        // Example: Show alert on page load
+        window.addEventListener('load', function() {
+            // Optional: Uncomment to show welcome message
+            // ERP.showAlert('Welcome back! Last login: Today at 10:30 AM', 'info', 3000);
+        });
+    </script>
+</body>
+</html>

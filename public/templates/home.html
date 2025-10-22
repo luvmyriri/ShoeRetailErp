@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modules - Shoe Retail ERP</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .modules-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2rem;
+            padding: 2rem;
+        }
+        .module-card {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        .module-card:hover {
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            transform: translateY(-4px);
+        }
+        .module-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .module-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .module-description {
+            font-size: 0.9rem;
+            color: #666;
+            flex-grow: 1;
+        }
+        .page-header-home {
+            padding: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            margin-bottom: 2rem;
+        }
+        .page-header-home h1 {
+            margin: 0;
+            font-size: 2rem;
+        }
+        .navbar-top {
+            background: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .navbar-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+        }
+        .navbar-brand i {
+            font-size: 1.5rem;
+        }
+        .user-menu {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .logout-btn {
+            background: #E74C3C;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .logout-btn:hover {
+            background: #C0392B;
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <div class="navbar-top">
+        <div class="navbar-brand">
+            <i class="fas fa-shoe-prints"></i>
+            <span>Shoe Retail ERP</span>
+        </div>
+        <div class="user-menu">
+            <span id="username"></span>
+            <a href="/ShoeRetailErp/logout.php" class="logout-btn">Logout</a>
+        </div>
+    </div>
+
+    <!-- Page Header -->
+    <div class="page-header-home">
+        <h1>Welcome to Shoe Retail ERP</h1>
+        <p>Select a module to get started</p>
+    </div>
+
+    <!-- Modules Grid -->
+    <div class="modules-container">
+        <!-- Dashboard Module -->
+        <a href="/ShoeRetailErp/public/index.php?page=dashboard" class="module-card">
+            <div class="module-icon">📊</div>
+            <div class="module-title">Dashboard</div>
+            <div class="module-description">View business overview and key statistics</div>
+        </a>
+
+        <!-- Inventory Module -->
+        <a href="/ShoeRetailErp/public/index.php?page=inventory" class="module-card">
+            <div class="module-icon">📦</div>
+            <div class="module-title">Inventory</div>
+            <div class="module-description">Manage products, stock levels, and warehouses</div>
+        </a>
+
+        <!-- Sales Module -->
+        <a href="/ShoeRetailErp/public/index.php?page=sales" class="module-card">
+            <div class="module-icon">🛒</div>
+            <div class="module-title">Sales</div>
+            <div class="module-description">Process orders, invoices, and returns</div>
+        </a>
+
+        <!-- Procurement Module -->
+        <a href="/ShoeRetailErp/public/index.php?page=procurement" class="module-card">
+            <div class="module-icon">🚚</div>
+            <div class="module-title">Procurement</div>
+            <div class="module-description">Manage suppliers and purchase orders</div>
+        </a>
+
+        <!-- Accounting Module -->
+        <a href="/ShoeRetailErp/public/index.php?page=accounting" class="module-card">
+            <div class="module-icon">💰</div>
+            <div class="module-title">Accounting</div>
+            <div class="module-description">Handle AR, AP, GL, and financial reports</div>
+        </a>
+
+        <!-- Customer Management Module -->
+        <a href="/ShoeRetailErp/public/index.php?page=customer_management" class="module-card">
+            <div class="module-icon">👥</div>
+            <div class="module-title">Customers</div>
+            <div class="module-description">Manage customer profiles, loyalty, and support</div>
+        </a>
+    </div>
+
+    <script>
+        // Display username
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get username from session or URL parameter
+            const username = new URLSearchParams(window.location.search).get('user') || 'Admin';
+            document.getElementById('username').textContent = 'Welcome, ' + username;
+        });
+    </script>
+</body>
+</html>

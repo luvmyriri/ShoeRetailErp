@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Accounting - Shoe Retail ERP</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="alert-container"></div>
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand"><i class="fas fa-shoe-prints"></i><span>Shoe Retail ERP</span></div>
+            <ul class="navbar-nav">
+                <li><a href="index.php?page=dashboard">Dashboard</a></li>
+                <li><a href="index.php?page=inventory">Inventory</a></li>
+                <li><a href="index.php?page=sales">Sales</a></li>
+                <li><a href="index.php?page=procurement">Procurement</a></li>
+                <li><a href="index.php?page=accounting" class="active">Accounting</a></li>
+            </ul>
+            <div class="navbar-right">
+                <div class="navbar-search"><input type="text" placeholder="Search transactions..."></div>
+                <div class="dropdown"><div class="navbar-avatar"><i class="fas fa-user"></i></div>
+                    <div class="dropdown-menu">
+                        <button class="dropdown-item"><i class="fas fa-user-circle"></i> Profile</button>
+                        <button class="dropdown-item"><i class="fas fa-cog"></i> Settings</button>
+                        <div class="dropdown-divider"></div>
+                        <a href="logout.php" class="dropdown-item"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <aside class="sidebar">
+        <div class="sidebar-header"><h5 style="color: white; margin: 0;">Menu</h5></div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-item"><a href="index.php?page=dashboard" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-chart-line"></i></span><span class="sidebar-text">Dashboard</span></a></li>
+            <li class="sidebar-item"><a href="index.php?page=sales" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-shopping-cart"></i></span><span class="sidebar-text">Sales</span></a></li>
+            <li class="sidebar-item"><a href="index.php?page=inventory" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-boxes"></i></span><span class="sidebar-text">Inventory</span></a></li>
+            <li class="sidebar-item"><a href="index.php?page=procurement" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-truck"></i></span><span class="sidebar-text">Procurement</span></a></li>
+            <li class="sidebar-item"><a href="index.php?page=accounting" class="sidebar-link active"><span class="sidebar-icon"><i class="fas fa-calculator"></i></span><span class="sidebar-text">Accounting</span></a></li>
+        </ul>
+    </aside>
+    <div class="main-wrapper">
+        <main class="main-content">
+            <div class="page-header">
+                <div class="page-header-title">
+                    <h1>Accounting Management</h1>
+                    <div class="page-header-breadcrumb"><a href="?page=dashboard">Home</a> / Accounting</div>
+                </div>
+                <div class="page-header-actions">
+                    <button class="btn btn-primary"><i class="fas fa-download"></i> Export Report</button>
+                </div>
+            </div>
+
+            <div class="row" style="margin-bottom: 2rem;">
+                <div class="col-md-3"><div class="stat-card"><div class="stat-icon">💰</div><div class="stat-value">$425,890</div><div class="stat-label">Total Revenue</div></div></div>
+                <div class="col-md-3"><div class="stat-card"><div class="stat-icon">📈</div><div class="stat-value">$156,234</div><div class="stat-label">Total Expenses</div></div></div>
+                <div class="col-md-3"><div class="stat-card"><div class="stat-icon">📊</div><div class="stat-value">$269,656</div><div class="stat-label">Net Income</div></div></div>
+                <div class="col-md-3"><div class="stat-card"><div class="stat-icon">💳</div><div class="stat-value">$45,230</div><div class="stat-label">Receivables</div></div></div>
+            </div>
+
+            <ul class="nav-tabs">
+                <li><a href="#" class="nav-link active" data-tab="arTab">Accounts Receivable</a></li>
+                <li><a href="#" class="nav-link" data-tab="apTab">Accounts Payable</a></li>
+                <li><a href="#" class="nav-link" data-tab="ledgerTab">General Ledger</a></li>
+                <li><a href="#" class="nav-link" data-tab="reportsTab">Financial Reports</a></li>
+            </ul>
+
+            <div id="arTab" class="tab-pane active">
+                <div class="card">
+                    <div class="card-header"><h3>Accounts Receivable</h3></div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead><tr><th>Invoice #</th><th>Customer</th><th>Amount Due</th><th>Due Date</th><th>Days Overdue</th><th>Status</th></tr></thead>
+                                <tbody>
+                                    <tr><td>INV-001</td><td>ABC Retail</td><td>$5,000</td><td>Oct 15</td><td>5</td><td><span class="badge badge-danger">Overdue</span></td></tr>
+                                    <tr><td>INV-002</td><td>XYZ Store</td><td>$3,500</td><td>Nov 10</td><td>0</td><td><span class="badge badge-warning">Pending</span></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="apTab" class="tab-pane">
+                <div class="card">
+                    <div class="card-header"><h3>Accounts Payable</h3></div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead><tr><th>Bill #</th><th>Supplier</th><th>Amount Due</th><th>Due Date</th><th>Status</th></tr></thead>
+                                <tbody>
+                                    <tr><td>BILL-001</td><td>Nike Wholesale</td><td>$5,000</td><td>Nov 5</td><td><span class="badge badge-success">Paid</span></td></tr>
+                                    <tr><td>BILL-002</td><td>Adidas Distributor</td><td>$3,200</td><td>Nov 10</td><td><span class="badge badge-warning">Pending</span></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="ledgerTab" class="tab-pane">
+                <div class="card">
+                    <div class="card-header"><h3>General Ledger</h3></div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead><tr><th>Date</th><th>Account</th><th>Description</th><th>Debit</th><th>Credit</th></tr></thead>
+                                <tbody>
+                                    <tr><td>Oct 20</td><td>1000 - Cash</td><td>Daily Sales</td><td>$2,450</td><td></td></tr>
+                                    <tr><td>Oct 20</td><td>2000 - Accounts Payable</td><td>Invoice Payment</td><td></td><td>$1,200</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="reportsTab" class="tab-pane">
+                <div class="card">
+                    <div class="card-header"><h3>Financial Reports</h3></div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5>Income Statement (Current Month)</h5>
+                                <table class="table table-sm">
+                                    <tr><td><strong>Revenue</strong></td><td style="text-align: right;"><strong>$425,890</strong></td></tr>
+                                    <tr><td>Cost of Goods Sold</td><td style="text-align: right;">$156,234</td></tr>
+                                    <tr><td><strong>Gross Profit</strong></td><td style="text-align: right;"><strong>$269,656</strong></td></tr>
+                                </table>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Balance Sheet</h5>
+                                <table class="table table-sm">
+                                    <tr><td><strong>Assets</strong></td><td style="text-align: right;"><strong>$500,000</strong></td></tr>
+                                    <tr><td><strong>Liabilities</strong></td><td style="text-align: right;"><strong>$150,000</strong></td></tr>
+                                    <tr><td><strong>Equity</strong></td><td style="text-align: right;"><strong>$350,000</strong></td></tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <div class="modal-backdrop"></div>
+    <script src="js/app.js"></script>
+</body>
+</html>

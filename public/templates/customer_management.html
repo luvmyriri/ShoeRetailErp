@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Customer Management - Shoe Retail ERP</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="alert-container"></div>
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand"><i class="fas fa-shoe-prints"></i><span>Shoe Retail ERP</span></div>
+            <ul class="navbar-nav">
+                <li><a href="index.php?page=dashboard">Dashboard</a></li>
+                <li><a href="index.php?page=inventory">Inventory</a></li>
+                <li><a href="index.php?page=sales">Sales</a></li>
+                <li><a href="index.php?page=procurement">Procurement</a></li>
+                <li><a href="index.php?page=accounting">Accounting</a></li>
+                <li><a href="index.php?page=customer_management" class="active">Customers</a></li>
+            </ul>
+            <div class="navbar-right">
+                <div class="navbar-search"><input type="text" placeholder="Search customers..."></div>
+                <div class="dropdown"><div class="navbar-avatar"><i class="fas fa-user"></i></div>
+                    <div class="dropdown-menu">
+                        <button class="dropdown-item"><i class="fas fa-user-circle"></i> Profile</button>
+                        <button class="dropdown-item"><i class="fas fa-cog"></i> Settings</button>
+                        <div class="dropdown-divider"></div>
+                        <a href="logout.php" class="dropdown-item"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <aside class="sidebar">
+        <div class="sidebar-header"><h5 style="color: white; margin: 0;">Menu</h5></div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-item"><a href="index.php?page=dashboard" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-chart-line"></i></span><span class="sidebar-text">Dashboard</span></a></li>
+            <li class="sidebar-item"><a href="index.php?page=sales" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-shopping-cart"></i></span><span class="sidebar-text">Sales</span></a></li>
+            <li class="sidebar-item"><a href="index.php?page=inventory" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-boxes"></i></span><span class="sidebar-text">Inventory</span></a></li>
+            <li class="sidebar-item"><a href="index.php?page=procurement" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-truck"></i></span><span class="sidebar-text">Procurement</span></a></li>
+            <li class="sidebar-item"><a href="index.php?page=customer_management" class="sidebar-link active"><span class="sidebar-icon"><i class="fas fa-users"></i></span><span class="sidebar-text">Customers</span></a></li>
+        </ul>
+    </aside>
+    <div class="main-wrapper">
+        <main class="main-content">
+            <div class="page-header">
+                <div class="page-header-title">
+                    <h1>Customer Management</h1>
+                    <div class="page-header-breadcrumb"><a href="?page=dashboard">Home</a> / Customers</div>
+                </div>
+                <div class="page-header-actions">
+                    <button class="btn btn-primary"><i class="fas fa-plus"></i> Add Customer</button>
+                </div>
+            </div>
+
+            <div class="row" style="margin-bottom: 2rem;">
+                <div class="col-md-3"><div class="stat-card"><div class="stat-icon">👥</div><div class="stat-value">1,250</div><div class="stat-label">Total Customers</div></div></div>
+                <div class="col-md-3"><div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-value">856</div><div class="stat-label">Loyalty Members</div></div></div>
+                <div class="col-md-3"><div class="stat-card"><div class="stat-icon">🎫</div><div class="stat-value">$125,450</div><div class="stat-label">Loyalty Points Value</div></div></div>
+                <div class="col-md-3"><div class="stat-card"><div class="stat-icon">🆘</div><div class="stat-value">12</div><div class="stat-label">Open Support Tickets</div></div></div>
+            </div>
+
+            <ul class="nav-tabs">
+                <li><a href="#" class="nav-link active" data-tab="profilesTab">Customer Profiles</a></li>
+                <li><a href="#" class="nav-link" data-tab="supportTab">Support Tickets</a></li>
+                <li><a href="#" class="nav-link" data-tab="loyaltyTab">Loyalty Program</a></li>
+            </ul>
+
+            <div id="profilesTab" class="tab-pane active">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Customer Profiles</h3>
+                        <input type="text" placeholder="Search customers..." style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 250px;">
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Total Orders</th><th>Lifetime Value</th><th>Status</th><th>Actions</th></tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td><strong>John Doe</strong></td>
+                                        <td>john@email.com</td>
+                                        <td>+1-555-0001</td>
+                                        <td>15</td>
+                                        <td>$4,500</td>
+                                        <td><span class="badge badge-success">Active</span></td>
+                                        <td><button class="btn btn-sm btn-info"><i class="fas fa-eye"></i></button> <button class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Jane Smith</strong></td>
+                                        <td>jane@email.com</td>
+                                        <td>+1-555-0002</td>
+                                        <td>8</td>
+                                        <td>$2,100</td>
+                                        <td><span class="badge badge-success">Active</span></td>
+                                        <td><button class="btn btn-sm btn-info"><i class="fas fa-eye"></i></button> <button class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button></td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Bob Wilson</strong></td>
+                                        <td>bob@email.com</td>
+                                        <td>+1-555-0003</td>
+                                        <td>3</td>
+                                        <td>$850</td>
+                                        <td><span class="badge badge-warning">Inactive</span></td>
+                                        <td><button class="btn btn-sm btn-info"><i class="fas fa-eye"></i></button> <button class="btn btn-sm btn-warning"><i class="fas fa-edit"></i></button> <button class="btn btn-sm btn-danger"><i class="fas fa-trash"></i></button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="supportTab" class="tab-pane">
+                <div class="card">
+                    <div class="card-header"><h3>Support Tickets</h3></div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead><tr><th>Ticket ID</th><th>Customer</th><th>Subject</th><th>Priority</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td>#TK-001</td>
+                                        <td>John Doe</td>
+                                        <td>Defective shoe received</td>
+                                        <td><span class="badge badge-danger">High</span></td>
+                                        <td><span class="badge badge-warning">Open</span></td>
+                                        <td>Oct 20, 2024</td>
+                                        <td><button class="btn btn-sm btn-info"><i class="fas fa-eye"></i></button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>#TK-002</td>
+                                        <td>Jane Smith</td>
+                                        <td>Size exchange request</td>
+                                        <td><span class="badge badge-warning">Medium</span></td>
+                                        <td><span class="badge badge-success">Resolved</span></td>
+                                        <td>Oct 18, 2024</td>
+                                        <td><button class="btn btn-sm btn-info"><i class="fas fa-eye"></i></button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>#TK-003</td>
+                                        <td>Bob Wilson</td>
+                                        <td>Tracking information request</td>
+                                        <td><span class="badge badge-info">Low</span></td>
+                                        <td><span class="badge badge-success">Closed</span></td>
+                                        <td>Oct 15, 2024</td>
+                                        <td><button class="btn btn-sm btn-info"><i class="fas fa-eye"></i></button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="loyaltyTab" class="tab-pane">
+                <div class="card">
+                    <div class="card-header"><h3>Loyalty Program Members</h3></div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead><tr><th>Member ID</th><th>Name</th><th>Tier</th><th>Points Balance</th><th>Rewards Redeemed</th><th>Join Date</th><th>Actions</th></tr></thead>
+                                <tbody>
+                                    <tr>
+                                        <td>LOYALTY-001</td>
+                                        <td>John Doe</td>
+                                        <td><span class="badge badge-gold">Gold</span></td>
+                                        <td>5,250 pts</td>
+                                        <td>2 rewards</td>
+                                        <td>Jan 15, 2023</td>
+                                        <td><button class="btn btn-sm btn-info"><i class="fas fa-eye"></i></button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>LOYALTY-002</td>
+                                        <td>Jane Smith</td>
+                                        <td><span class="badge badge-silver">Silver</span></td>
+                                        <td>2,150 pts</td>
+                                        <td>1 reward</td>
+                                        <td>Jun 20, 2023</td>
+                                        <td><button class="btn btn-sm btn-info"><i class="fas fa-eye"></i></button></td>
+                                    </tr>
+                                    <tr>
+                                        <td>LOYALTY-003</td>
+                                        <td>Alice Johnson</td>
+                                        <td><span class="badge badge-bronze">Bronze</span></td>
+                                        <td>850 pts</td>
+                                        <td>0 rewards</td>
+                                        <td>Sep 10, 2024</td>
+                                        <td><button class="btn btn-sm btn-info"><i class="fas fa-eye"></i></button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card" style="margin-top: 2rem;">
+                    <div class="card-header"><h3>Loyalty Tier Information</h3></div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div style="padding: 1rem; background: #f0f0f0; border-radius: 8px; text-align: center;">
+                                    <h5>Bronze Tier</h5>
+                                    <p>0 - 999 Points</p>
+                                    <small>Base rewards</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div style="padding: 1rem; background: #c0c0c0; border-radius: 8px; text-align: center; color: white;">
+                                    <h5>Silver Tier</h5>
+                                    <p>1,000 - 4,999 Points</p>
+                                    <small>+10% bonus</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div style="padding: 1rem; background: #ffd700; border-radius: 8px; text-align: center;">
+                                    <h5>Gold Tier</h5>
+                                    <p>5,000+ Points</p>
+                                    <small>+20% bonus</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div style="padding: 1rem; background: #ff0000; border-radius: 8px; text-align: center; color: white;">
+                                    <h5>Platinum Tier</h5>
+                                    <p>20,000+ Points</p>
+                                    <small>VIP benefits</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <div class="modal-backdrop"></div>
+    <script src="js/app.js"></script>
+</body>
+</html>

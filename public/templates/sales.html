@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Management - Shoe Retail ERP</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="alert-container"></div>
+    <nav class="navbar">
+        <div class="navbar-container">
+            <div class="navbar-brand"><i class="fas fa-shoe-prints"></i><span>Shoe Retail ERP</span></div>
+            <ul class="navbar-nav">
+                <li><a href="index.php?page=dashboard">Dashboard</a></li>
+                <li><a href="index.php?page=inventory">Inventory</a></li>
+                <li><a href="index.php?page=sales" class="active">Sales</a></li>
+                <li><a href="index.php?page=procurement">Procurement</a></li>
+                <li><a href="index.php?page=accounting">Accounting</a></li>
+                <li><a href="index.php?page=customer_management">Customers</a></li>
+            </ul>
+            <div class="navbar-right">
+                <div class="navbar-search"><input type="text" placeholder="Search orders..."></div>
+                <div class="dropdown">
+                    <div class="navbar-avatar"><i class="fas fa-user"></i></div>
+                    <div class="dropdown-menu">
+                        <button class="dropdown-item"><i class="fas fa-user-circle"></i> Profile</button>
+                        <button class="dropdown-item"><i class="fas fa-cog"></i> Settings</button>
+                        <div class="dropdown-divider"></div>
+                        <a href="logout.php" class="dropdown-item"><i class="fas fa-sign-out-alt"></i> Logout</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <aside class="sidebar">
+        <div class="sidebar-header"><h5 style="color: white; margin: 0;">Menu</h5></div>
+        <ul class="sidebar-menu">
+            <li class="sidebar-item"><a href="index.php?page=dashboard" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-chart-line"></i></span><span class="sidebar-text">Dashboard</span></a></li>
+            <li class="sidebar-item"><a href="index.php?page=sales" class="sidebar-link active"><span class="sidebar-icon"><i class="fas fa-shopping-cart"></i></span><span class="sidebar-text">Sales</span></a></li>
+            <li class="sidebar-item"><a href="index.php?page=inventory" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-boxes"></i></span><span class="sidebar-text">Inventory</span></a></li>
+            <li class="sidebar-item"><a href="index.php?page=procurement" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-truck"></i></span><span class="sidebar-text">Procurement</span></a></li>
+            <li class="sidebar-item"><a href="index.php?page=accounting" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-calculator"></i></span><span class="sidebar-text">Accounting</span></a></li>
+            <li class="sidebar-item"><a href="index.php?page=customer_management" class="sidebar-link"><span class="sidebar-icon"><i class="fas fa-users"></i></span><span class="sidebar-text">Customers</span></a></li>
+        </ul>
+    </aside>
+    <div class="main-wrapper">
+        <main class="main-content">
+            <div class="page-header">
+                <div class="page-header-title">
+                    <h1>Sales Management</h1>
+                    <div class="page-header-breadcrumb"><a href="?page=dashboard">Home</a> / Sales</div>
+                </div>
+                <div class="page-header-actions">
+                    <button class="btn btn-primary" data-toggle="modal" data-target="newOrderModal"><i class="fas fa-plus"></i> New Sale</button>
+                </div>
+            </div>
+
+            <ul class="nav-tabs">
+                <li><a href="#" class="nav-link active" data-tab="ordersTab">Orders</a></li>
+                <li><a href="#" class="nav-link" data-tab="invoicesTab">Invoices</a></li>
+                <li><a href="#" class="nav-link" data-tab="returnsTab">Returns</a></li>
+                <li><a href="#" class="nav-link" data-tab="reportsTab">Reports</a></li>
+            </ul>
+
+            <div id="ordersTab" class="tab-pane active">
+                <div class="card">
+                    <div class="card-header"><h3>Recent Orders</h3></div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead><tr><th>Order ID</th><th>Customer</th><th>Items</th><th>Total</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+                                <tbody>
+                                    <tr><td>#ORD-001</td><td>John Doe</td><td>2</td><td>$299.99</td><td>Oct 20</td><td><span class="badge badge-success">Completed</span></td><td><button class="btn btn-sm btn-outline">View</button></td></tr>
+                                    <tr><td>#ORD-002</td><td>Jane Smith</td><td>1</td><td>$149.99</td><td>Oct 20</td><td><span class="badge badge-info">Processing</span></td><td><button class="btn btn-sm btn-outline">View</button></td></tr>
+                                    <tr><td>#ORD-003</td><td>Mike Johnson</td><td>3</td><td>$449.99</td><td>Oct 19</td><td><span class="badge badge-success">Completed</span></td><td><button class="btn btn-sm btn-outline">View</button></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="invoicesTab" class="tab-pane">
+                <div class="card">
+                    <div class="card-header"><h3>Invoices</h3></div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead><tr><th>Invoice #</th><th>Customer</th><th>Amount</th><th>Due Date</th><th>Status</th></tr></thead>
+                                <tbody>
+                                    <tr><td>INV-001</td><td>John Doe</td><td>$299.99</td><td>Nov 20</td><td><span class="badge badge-success">Paid</span></td></tr>
+                                    <tr><td>INV-002</td><td>Jane Smith</td><td>$149.99</td><td>Nov 20</td><td><span class="badge badge-warning">Pending</span></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="returnsTab" class="tab-pane">
+                <div class="card">
+                    <div class="card-header"><h3>Returns & Refunds</h3></div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead><tr><th>Return ID</th><th>Order ID</th><th>Customer</th><th>Reason</th><th>Amount</th><th>Status</th></tr></thead>
+                                <tbody>
+                                    <tr><td>RET-001</td><td>#ORD-001</td><td>John Doe</td><td>Wrong Size</td><td>$99.99</td><td><span class="badge badge-success">Processed</span></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="reportsTab" class="tab-pane">
+                <div class="row">
+                    <div class="col-md-3"><div class="stat-card"><div class="stat-icon">💰</div><div class="stat-value">$12,450</div><div class="stat-label">Today's Sales</div></div></div>
+                    <div class="col-md-3"><div class="stat-card"><div class="stat-icon">📦</div><div class="stat-value">45</div><div class="stat-label">Orders Today</div></div></div>
+                    <div class="col-md-3"><div class="stat-card"><div class="stat-icon">👥</div><div class="stat-value">32</div><div class="stat-label">Unique Customers</div></div></div>
+                    <div class="col-md-3"><div class="stat-card"><div class="stat-icon">⭐</div><div class="stat-value">4.8</div><div class="stat-label">Avg Rating</div></div></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div id="newOrderModal" class="modal">
+        <div class="modal-header"><h3>New Sale</h3><button class="modal-close" data-dismiss="modal">&times;</button></div>
+        <div class="modal-body">
+            <form>
+                <div class="form-group"><label class="form-label">Customer</label><input type="text" class="form-control" placeholder="Select customer"></div>
+                <div class="form-group"><label class="form-label">Product</label><input type="text" class="form-control" placeholder="Select product"></div>
+                <div class="form-group"><label class="form-label">Quantity</label><input type="number" class="form-control" placeholder="1"></div>
+                <div class="form-group"><label class="form-label">Payment Method</label><div class="form-select"><select class="form-control"><option>Cash</option><option>Card</option><option>Check</option></select></div></div>
+            </form>
+        </div>
+        <div class="modal-footer"><button class="btn btn-outline" data-dismiss="modal">Cancel</button><button class="btn btn-primary">Complete Sale</button></div>
+    </div>
+
+    <div class="modal-backdrop"></div>
+    <script src="js/app.js"></script>
+</body>
+</html>
