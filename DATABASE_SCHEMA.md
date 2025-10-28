@@ -4,7 +4,7 @@ USE `shoeretailerp`;
 --
 -- Host: localhost    Database: shoeretailerp
 -- ------------------------------------------------------
--- Server version	8.0.42
+-- Server version	8.0.44
 
 /*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
@@ -87,6 +87,7 @@ CREATE TABLE `accountsreceivable` (
   `PaymentStatus` enum('Pending','Paid','Overdue','Partial') DEFAULT 'Pending',
   `PaidAmount` decimal(10,2) DEFAULT '0.00',
   `PaymentDate` datetime DEFAULT NULL,
+  `DiscountFromPoints` decimal(10,2) DEFAULT '0.00',
   PRIMARY KEY (`ARID`),
   KEY `SaleID` (`SaleID`),
   KEY `CustomerID` (`CustomerID`),
@@ -126,6 +127,92 @@ DELIMITER ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
 
 --
+-- Table structure for table `attendance`
+--
+
+DROP TABLE IF EXISTS `attendance`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `attendance` (
+  `AttendanceID` int NOT NULL AUTO_INCREMENT,
+  `EmployeeID` int DEFAULT NULL,
+  `AttendanceDate` date NOT NULL,
+  `LogInTime` datetime DEFAULT NULL,
+  `LogOutTime` datetime DEFAULT NULL,
+  `HoursWorked` decimal(5,2) DEFAULT NULL,
+  `Notes` text,
+  PRIMARY KEY (`AttendanceID`),
+  UNIQUE KEY `unique_employee_date` (`EmployeeID`,`AttendanceDate`),
+  KEY `idx_attendance_date` (`AttendanceDate`),
+  CONSTRAINT `attendance_ibfk_1` FOREIGN KEY (`EmployeeID`) REFERENCES `employees` (`EmployeeID`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `attendance`
+--
+
+LOCK TABLES `attendance` WRITE;
+/*!40000 ALTER TABLE `attendance` DISABLE KEYS */;
+/*!40000 ALTER TABLE `attendance` ENABLE KEYS */;
+UNLOCK TABLES;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb4 */ ;
+/*!50003 SET character_set_results = utf8mb4 */ ;
+/*!50003 SET collation_connection  = utf8mb4_0900_ai_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'ONLY_FULL_GROUP_BY,STRICT_TRANS_TABLES,NO_ZERO_IN_DATE,NO_ZERO_DATE,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `tr_calculate_hours` BEFORE UPDATE ON `attendance` FOR EACH ROW BEGIN
+    IF NEW.LogOutTime IS NOT NULL AND NEW.LogInTime IS NOT NULL THEN
+        SET NEW.HoursWorked = TIMESTAMPDIFF(MINUTE, NEW.LogInTime, NEW.LogOutTime) / 60.0;
+    END IF;
+END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+
+--
+-- Table structure for table `budgets`
+--
+
+DROP TABLE IF EXISTS `budgets`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `budgets` (
+  `BudgetID` int NOT NULL AUTO_INCREMENT,
+  `StoreID` int DEFAULT NULL,
+  `Department` varchar(50) DEFAULT NULL,
+  `Month` int NOT NULL,
+  `Year` int NOT NULL,
+  `ProposedAmount` decimal(10,2) NOT NULL,
+  `ApprovedAmount` decimal(10,2) DEFAULT '0.00',
+  `Status` enum('Proposed','Approved','Rejected','Allocated') DEFAULT 'Proposed',
+  `ApprovedBy` int DEFAULT NULL,
+  `CreatedAt` datetime DEFAULT CURRENT_TIMESTAMP,
+  `UpdatedAt` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`BudgetID`),
+  UNIQUE KEY `unique_store_dept_period` (`StoreID`,`Department`,`Month`,`Year`),
+  KEY `ApprovedBy` (`ApprovedBy`),
+  CONSTRAINT `budgets_ibfk_1` FOREIGN KEY (`StoreID`) REFERENCES `stores` (`StoreID`) ON DELETE CASCADE,
+  CONSTRAINT `budgets_ibfk_2` FOREIGN KEY (`ApprovedBy`) REFERENCES `users` (`UserID`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `budgets`
+--
+
+LOCK TABLES `budgets` WRITE;
+/*!40000 ALTER TABLE `budgets` DISABLE KEYS */;
+/*!40000 ALTER TABLE `budgets` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
 -- Table structure for table `customers`
 --
 
@@ -134,6 +221,7 @@ DROP TABLE IF EXISTS `customers`;
 /*!50503 SET character_set_client = utf8mb4 */;
 CREATE TABLE `customers` (
   `CustomerID` int NOT NULL AUTO_INCREMENT,
+  `MemberNumber` varchar(20) DEFAULT NULL,
   `FirstName` varchar(50) NOT NULL,
   `LastName` varchar(50) DEFAULT NULL,
   `Email` varchar(100) DEFAULT NULL,
@@ -143,6 +231,7 @@ CREATE TABLE `customers` (
   `Status` enum('Active','Inactive') DEFAULT 'Active',
   `CreatedAt` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`CustomerID`),
+  UNIQUE KEY `MemberNumber` (`MemberNumber`),
   UNIQUE KEY `Email` (`Email`),
   UNIQUE KEY `Phone` (`Phone`)
 ) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -154,7 +243,7 @@ CREATE TABLE `customers` (
 
 LOCK TABLES `customers` WRITE;
 /*!40000 ALTER TABLE `customers` DISABLE KEYS */;
-INSERT INTO `customers` VALUES (1,'Alice','Johnson','alice@email.com','555-2001','111 Customer St',150,'Active','2025-10-22 08:41:50'),(2,'Bob','Smith','bob@email.com','555-2002','222 Buyer Ave',75,'Active','2025-10-22 08:41:50'),(3,'Carol','Davis','carol@email.com','555-2003','333 Shopper Rd',200,'Active','2025-10-22 08:41:50');
+INSERT INTO `customers` VALUES (1,'MEM-001','Alice','Johnson','alice@email.com','555-2001','111 Customer St',150,'Active','2025-10-22 08:41:50'),(2,'MEM-002','Bob','Smith','bob@email.com','555-2002','222 Buyer Ave',75,'Active','2025-10-22 08:41:50'),(3,'MEM-003','Carol','Davis','carol@email.com','555-2003','333 Shopper Rd',200,'Active','2025-10-22 08:41:50');
 /*!40000 ALTER TABLE `customers` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -172,8 +261,9 @@ CREATE TABLE `employees` (
   `Email` varchar(100) NOT NULL,
   `Phone` varchar(20) DEFAULT NULL,
   `HireDate` date NOT NULL,
-  `Salary` decimal(10,2) NOT NULL,
-  `HourlyRate` decimal(10,2) DEFAULT NULL,
+  `Salary` decimal(10,2) DEFAULT NULL,
+  `HourlyRate` decimal(10,2) NOT NULL,
+  `BankAccountNumber` varchar(50) DEFAULT NULL,
   `StoreID` int DEFAULT NULL,
   `Status` enum('Active','Inactive','On Leave','Terminated') DEFAULT 'Active',
   `CreatedAt` datetime DEFAULT CURRENT_TIMESTAMP,
@@ -181,6 +271,7 @@ CREATE TABLE `employees` (
   PRIMARY KEY (`EmployeeID`),
   UNIQUE KEY `Email` (`Email`),
   UNIQUE KEY `Phone` (`Phone`),
+  UNIQUE KEY `BankAccountNumber` (`BankAccountNumber`),
   KEY `StoreID` (`StoreID`),
   CONSTRAINT `employees_ibfk_1` FOREIGN KEY (`StoreID`) REFERENCES `stores` (`StoreID`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
@@ -289,7 +380,6 @@ CREATE TABLE `inventory` (
 
 LOCK TABLES `inventory` WRITE;
 /*!40000 ALTER TABLE `inventory` DISABLE KEYS */;
-INSERT INTO `inventory` VALUES (1,1,1,25,'2025-10-22 08:41:50'),(2,1,2,15,'2025-10-22 08:41:50'),(3,1,3,10,'2025-10-22 08:41:50'),(4,2,1,20,'2025-10-22 08:41:50'),(5,2,2,18,'2025-10-22 08:41:50'),(6,2,3,12,'2025-10-22 08:41:50'),(7,3,1,12,'2025-10-22 08:41:50'),(8,3,2,8,'2025-10-22 08:41:50'),(9,3,3,5,'2025-10-22 08:41:50'),(10,4,1,15,'2025-10-22 08:41:50'),(11,4,2,10,'2025-10-22 08:41:50'),(12,4,3,7,'2025-10-22 08:41:50'),(13,5,1,50,'2025-10-22 08:41:50'),(14,5,2,40,'2025-10-22 08:41:50'),(15,5,3,30,'2025-10-22 08:41:50');
 /*!40000 ALTER TABLE `inventory` ENABLE KEYS */;
 UNLOCK TABLES;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
@@ -367,6 +457,193 @@ DELIMITER ;
 /*!50003 SET character_set_client  = @saved_cs_client */ ;
 /*!50003 SET character_set_results = @saved_cs_results */ ;
 /*!50003 SET collation_connection  = @saved_col_connection */ ;
+
+--
+-- Table structure for table `leavebalances`
+--
+
+DROP TABLE IF EXISTS `leavebalances`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `leavebalances` (
+  `BalanceID` int NOT NULL AUTO_INCREMENT,
+  `EmployeeID` int DEFAULT NULL,
+  `LeaveTypeID` int DEFAULT NULL,
+  `Year` int NOT NULL,
+  `Entitlement` int NOT NULL DEFAULT '0',
+  `Taken` int NOT NULL DEFAULT '0',
+  `Remaining` int NOT NULL DEFAULT '0',
+  PRIMARY KEY (`BalanceID`),
+  UNIQUE KEY `unique_employee_leave_year` (`EmployeeID`,`LeaveTypeID`,`Year`),
+  KEY `leavebalances_ibfk_2` (`LeaveTypeID`),
+  CONSTRAINT `leavebalances_ibfk_1` FOREIGN KEY (`EmployeeID`) REFERENCES `employees` (`EmployeeID`) ON DELETE CASCADE,
+  CONSTRAINT `leavebalances_ibfk_2` FOREIGN KEY (`LeaveTypeID`) REFERENCES `leavetypes` (`LeaveTypeID`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `leavebalances`
+--
+
+LOCK TABLES `leavebalances` WRITE;
+/*!40000 ALTER TABLE `leavebalances` DISABLE KEYS */;
+/*!40000 ALTER TABLE `leavebalances` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `leaverequests`
+--
+
+DROP TABLE IF EXISTS `leaverequests`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `leaverequests` (
+  `LeaveRequestID` int NOT NULL AUTO_INCREMENT,
+  `EmployeeID` int DEFAULT NULL,
+  `LeaveTypeID` int DEFAULT NULL,
+  `StartDate` date NOT NULL,
+  `EndDate` date NOT NULL,
+  `DaysRequested` int NOT NULL,
+  `Status` enum('Pending','Approved','Rejected') DEFAULT 'Pending',
+  `ApprovedBy` int DEFAULT NULL,
+  `RequestDate` datetime DEFAULT CURRENT_TIMESTAMP,
+  `Comments` text,
+  PRIMARY KEY (`LeaveRequestID`),
+  KEY `EmployeeID` (`EmployeeID`),
+  KEY `LeaveTypeID` (`LeaveTypeID`),
+  KEY `ApprovedBy` (`ApprovedBy`),
+  CONSTRAINT `leaverequests_ibfk_1` FOREIGN KEY (`EmployeeID`) REFERENCES `employees` (`EmployeeID`) ON DELETE CASCADE,
+  CONSTRAINT `leaverequests_ibfk_2` FOREIGN KEY (`LeaveTypeID`) REFERENCES `leavetypes` (`LeaveTypeID`) ON DELETE CASCADE,
+  CONSTRAINT `leaverequests_ibfk_3` FOREIGN KEY (`ApprovedBy`) REFERENCES `users` (`UserID`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `leaverequests`
+--
+
+LOCK TABLES `leaverequests` WRITE;
+/*!40000 ALTER TABLE `leaverequests` DISABLE KEYS */;
+/*!40000 ALTER TABLE `leaverequests` ENABLE KEYS */;
+UNLOCK TABLES;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb3 */ ;
+/*!50003 SET character_set_results = utf8mb3 */ ;
+/*!50003 SET collation_connection  = utf8mb3_general_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `tr_leave_attendance` AFTER INSERT ON `leaverequests` FOR EACH ROW BEGIN
+    IF NEW.Status = 'Approved' THEN
+        INSERT INTO Attendance (EmployeeID, AttendanceDate, Notes)
+        SELECT NEW.EmployeeID, d.Date, CONCAT('On ', lt.LeaveTypeName)
+        FROM (
+            SELECT NEW.StartDate + INTERVAL (n-1) DAY AS Date
+            FROM (
+                SELECT a.N + b.N * 10 + 1 AS n
+                FROM (SELECT 0 AS N UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) a
+                CROSS JOIN (SELECT 0 AS N UNION SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9) b
+            ) numbers
+            WHERE n <= DATEDIFF(NEW.EndDate, NEW.StartDate) + 1
+        ) d
+        JOIN LeaveTypes lt ON NEW.LeaveTypeID = lt.LeaveTypeID
+        ON DUPLICATE KEY UPDATE Notes = CONCAT('On ', lt.LeaveTypeName);
+    END IF;
+END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb3 */ ;
+/*!50003 SET character_set_results = utf8mb3 */ ;
+/*!50003 SET collation_connection  = utf8mb3_general_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
+DELIMITER ;;
+/*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `tr_update_leave_balance` AFTER UPDATE ON `leaverequests` FOR EACH ROW BEGIN
+    IF NEW.Status = 'Approved' AND OLD.Status != 'Approved' THEN
+        UPDATE LeaveBalances
+        SET Taken = Taken + NEW.DaysRequested,
+            Remaining = Remaining - NEW.DaysRequested
+        WHERE EmployeeID = NEW.EmployeeID
+        AND LeaveTypeID = NEW.LeaveTypeID
+        AND Year = YEAR(NEW.StartDate);
+    END IF;
+END */;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
+
+--
+-- Table structure for table `leavetypes`
+--
+
+DROP TABLE IF EXISTS `leavetypes`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `leavetypes` (
+  `LeaveTypeID` int NOT NULL AUTO_INCREMENT,
+  `LeaveTypeName` varchar(50) NOT NULL,
+  `Description` text,
+  `IsPaid` enum('Yes','No') DEFAULT 'Yes',
+  `DefaultEntitlement` int DEFAULT '0',
+  PRIMARY KEY (`LeaveTypeID`),
+  UNIQUE KEY `LeaveTypeName` (`LeaveTypeName`)
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `leavetypes`
+--
+
+LOCK TABLES `leavetypes` WRITE;
+/*!40000 ALTER TABLE `leavetypes` DISABLE KEYS */;
+INSERT INTO `leavetypes` VALUES (1,'Sick Leave','Paid leave for medical reasons','Yes',7),(2,'Birthday Leave','One day off for employee’s birthday','Yes',1);
+/*!40000 ALTER TABLE `leavetypes` ENABLE KEYS */;
+UNLOCK TABLES;
+
+--
+-- Table structure for table `payroll`
+--
+
+DROP TABLE IF EXISTS `payroll`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!50503 SET character_set_client = utf8mb4 */;
+CREATE TABLE `payroll` (
+  `PayrollID` int NOT NULL AUTO_INCREMENT,
+  `EmployeeID` int DEFAULT NULL,
+  `PayPeriodStart` date NOT NULL,
+  `PayPeriodEnd` date NOT NULL,
+  `HoursWorked` decimal(5,2) NOT NULL,
+  `HourlyRate` decimal(10,2) NOT NULL,
+  `GrossPay` decimal(10,2) NOT NULL,
+  `LeavePay` decimal(10,2) DEFAULT '0.00',
+  `Deductions` decimal(10,2) DEFAULT '0.00',
+  `NetPay` decimal(10,2) NOT NULL,
+  `PaymentDate` date DEFAULT NULL,
+  `Status` enum('Pending','Paid','Processed') DEFAULT 'Pending',
+  PRIMARY KEY (`PayrollID`),
+  UNIQUE KEY `unique_employee_period` (`EmployeeID`,`PayPeriodStart`,`PayPeriodEnd`),
+  CONSTRAINT `payroll_ibfk_1` FOREIGN KEY (`EmployeeID`) REFERENCES `employees` (`EmployeeID`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+
+--
+-- Dumping data for table `payroll`
+--
+
+LOCK TABLES `payroll` WRITE;
+/*!40000 ALTER TABLE `payroll` DISABLE KEYS */;
+/*!40000 ALTER TABLE `payroll` ENABLE KEYS */;
+UNLOCK TABLES;
 
 --
 -- Table structure for table `products`
@@ -548,6 +825,8 @@ CREATE TABLE `sales` (
   `TotalAmount` decimal(10,2) NOT NULL,
   `TaxAmount` decimal(10,2) DEFAULT '0.00',
   `DiscountAmount` decimal(10,2) DEFAULT '0.00',
+  `PointsUsed` int DEFAULT '0',
+  `PointsEarned` int DEFAULT '0',
   `PaymentStatus` enum('Paid','Credit','Refunded','Partial') DEFAULT 'Paid',
   `PaymentMethod` enum('Cash','Card','Credit','Loyalty') DEFAULT 'Cash',
   `SalespersonID` int DEFAULT NULL,
@@ -621,7 +900,7 @@ CREATE TABLE `stores` (
   `Status` enum('Active','Inactive') DEFAULT 'Active',
   `CreatedAt` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`StoreID`)
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -630,7 +909,7 @@ CREATE TABLE `stores` (
 
 LOCK TABLES `stores` WRITE;
 /*!40000 ALTER TABLE `stores` DISABLE KEYS */;
-INSERT INTO `stores` VALUES (1,'Downtown Store','123 Main St, City Center','John Smith','555-0101','Active','2025-10-22 08:41:50'),(2,'Mall Store','Shopping Mall, North Side','Jane Doe','555-0102','Active','2025-10-22 08:41:50'),(3,'Outlet Store','456 Outlet Rd, Suburbs','Mike Johnson','555-0103','Active','2025-10-22 08:41:50');
+INSERT INTO `stores` VALUES (1,'Maria Collections Bagong Silang','Bagong Silang, Caloocan City','Maria','09XX-XXX-XXXX','Active','2025-10-28 03:10:22');
 /*!40000 ALTER TABLE `stores` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -750,7 +1029,7 @@ CREATE TABLE `users` (
   `FirstName` varchar(50) NOT NULL,
   `LastName` varchar(50) NOT NULL,
   `Email` varchar(100) NOT NULL,
-  `Role` enum('Admin','Manager','Cashier','Accountant','Support') NOT NULL,
+  `Role` enum('Admin','Manager','Cashier','Accountant','Support','Inventory','Sales','Procurement','Accounting','Customers','HR') NOT NULL,
   `StoreID` int DEFAULT NULL,
   `Status` enum('Active','Inactive') DEFAULT 'Active',
   `CreatedAt` datetime DEFAULT CURRENT_TIMESTAMP,
@@ -759,7 +1038,7 @@ CREATE TABLE `users` (
   UNIQUE KEY `Email` (`Email`),
   KEY `StoreID` (`StoreID`),
   CONSTRAINT `users_ibfk_1` FOREIGN KEY (`StoreID`) REFERENCES `stores` (`StoreID`) ON DELETE SET NULL
-) ENGINE=InnoDB AUTO_INCREMENT=4 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB AUTO_INCREMENT=7 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
@@ -768,7 +1047,7 @@ CREATE TABLE `users` (
 
 LOCK TABLES `users` WRITE;
 /*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES (1,'admin','$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi','Admin','User','admin@shoestore.com','Admin',NULL,'Active','2025-10-22 08:41:50'),(2,'manager1','$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi','John','Smith','john@shoestore.com','Manager',1,'Active','2025-10-22 08:41:50'),(3,'cashier1','$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi','Mary','Johnson','mary@shoestore.com','Cashier',1,'Active','2025-10-22 08:41:50');
+INSERT INTO `users` VALUES (1,'admin','$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi','Admin','User','admin@shoestore.com','Admin',NULL,'Active','2025-10-22 08:41:50'),(2,'manager1','$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi','John','Smith','john@shoestore.com','Manager',NULL,'Active','2025-10-22 08:41:50'),(3,'cashier1','$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi','Mary','Johnson','mary@shoestore.com','Cashier',NULL,'Active','2025-10-22 08:41:50'),(4,'inventory','$2y$12$P49QiiXYhWameOP/nIC/VecOdajnrBfRRxZBrxg4/qXGKnsPv./06','Val Javez','Lamsen','vjlamsenlamsen28@gmail.com','Inventory',1,'Active','2025-10-28 03:48:35'),(5,'inventory2','$2y$12$mtZ.Xt.4wJhe9xwW3JstCuaim1kvBHC5OzgIpg77aIc4tHTFQBi8a','Gene','Tabibis','gegesgene@gmail.com','Inventory',NULL,'Active','2025-10-28 03:54:49'),(6,'humores','$2y$12$D9iZI/f3T6rd/JUqjCiat.Dwq73tIErZAlArV2UotDncNaUg8R/TG','Daril','Pidil','darilpidil@gmail.com','HR',NULL,'Active','2025-10-28 04:08:11');
 /*!40000 ALTER TABLE `users` ENABLE KEYS */;
 UNLOCK TABLES;
 
@@ -862,6 +1141,62 @@ SET character_set_client = @saved_cs_client;
 --
 -- Dumping routines for database 'shoeretailerp'
 --
+/*!50003 DROP PROCEDURE IF EXISTS `GeneratePayroll` */;
+/*!50003 SET @saved_cs_client      = @@character_set_client */ ;
+/*!50003 SET @saved_cs_results     = @@character_set_results */ ;
+/*!50003 SET @saved_col_connection = @@collation_connection */ ;
+/*!50003 SET character_set_client  = utf8mb3 */ ;
+/*!50003 SET character_set_results = utf8mb3 */ ;
+/*!50003 SET collation_connection  = utf8mb3_general_ci */ ;
+/*!50003 SET @saved_sql_mode       = @@sql_mode */ ;
+/*!50003 SET sql_mode              = 'NO_AUTO_VALUE_ON_ZERO' */ ;
+DELIMITER ;;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `GeneratePayroll`(
+    IN p_employee_id INT,
+    IN p_start_date DATE,
+    IN p_end_date DATE,
+    IN p_deductions DECIMAL(10,2)
+)
+BEGIN
+    DECLARE v_hours_worked DECIMAL(5,2);
+    DECLARE v_hourly_rate DECIMAL(10,2);
+    DECLARE v_gross_pay DECIMAL(10,2);
+    DECLARE v_leave_pay DECIMAL(10,2) DEFAULT 0.00;
+    DECLARE v_net_pay DECIMAL(10,2);
+    
+    -- Calculate total hours from attendance
+    SELECT SUM(HoursWorked) INTO v_hours_worked
+    FROM Attendance
+    WHERE EmployeeID = p_employee_id
+    AND AttendanceDate BETWEEN p_start_date AND p_end_date;
+    
+    -- Get hourly rate
+    SELECT HourlyRate INTO v_hourly_rate
+    FROM Employees
+    WHERE EmployeeID = p_employee_id;
+    
+    -- Calculate leave pay for approved paid leaves
+    SELECT SUM(lr.DaysRequested * 8 * e.HourlyRate) INTO v_leave_pay
+    FROM LeaveRequests lr
+    JOIN LeaveTypes lt ON lr.LeaveTypeID = lt.LeaveTypeID
+    JOIN Employees e ON lr.EmployeeID = e.EmployeeID
+    WHERE lr.EmployeeID = p_employee_id
+    AND lr.Status = 'Approved'
+    AND lt.IsPaid = 'Yes'
+    AND lr.StartDate BETWEEN p_start_date AND p_end_date;
+    
+    SET v_gross_pay = (v_hours_worked * v_hourly_rate) + COALESCE(v_leave_pay, 0);
+    SET v_net_pay = v_gross_pay - p_deductions;
+    
+    -- Insert into payroll
+    INSERT INTO Payroll (EmployeeID, PayPeriodStart, PayPeriodEnd, HoursWorked, HourlyRate, GrossPay, LeavePay, Deductions, NetPay)
+    VALUES (p_employee_id, p_start_date, p_end_date, v_hours_worked, v_hourly_rate, v_gross_pay, v_leave_pay, p_deductions, v_net_pay);
+END ;;
+DELIMITER ;
+/*!50003 SET sql_mode              = @saved_sql_mode */ ;
+/*!50003 SET character_set_client  = @saved_cs_client */ ;
+/*!50003 SET character_set_results = @saved_cs_results */ ;
+/*!50003 SET collation_connection  = @saved_col_connection */ ;
 /*!50003 DROP PROCEDURE IF EXISTS `ProcessSale` */;
 /*!50003 SET @saved_cs_client      = @@character_set_client */ ;
 /*!50003 SET @saved_cs_results     = @@character_set_results */ ;
@@ -878,6 +1213,7 @@ CREATE DEFINER=`root`@`localhost` PROCEDURE `ProcessSale`(
     IN p_products JSON,
     IN p_payment_method VARCHAR(20),
     IN p_discount_amount DECIMAL(10,2),
+    IN p_points_used INT,
     OUT p_sale_id INT
 )
 BEGIN
@@ -890,6 +1226,7 @@ BEGIN
     DECLARE v_i INT DEFAULT 0;
     DECLARE v_count INT;
     DECLARE v_loyalty_points INT;
+    DECLARE v_points_discount DECIMAL(10,2);
     
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
     BEGIN
@@ -899,12 +1236,15 @@ BEGIN
     
     START TRANSACTION;
     
+    -- Calculate points discount (assuming 1 point = $1 discount)
+    SET v_points_discount = p_points_used * 1.00;
+    
     -- Get product count from JSON
     SET v_count = JSON_LENGTH(p_products);
     
     -- Create sale record
-    INSERT INTO Sales (CustomerID, StoreID, TotalAmount, TaxAmount, DiscountAmount, PaymentMethod, PaymentStatus)
-    VALUES (p_customer_id, p_store_id, 0, 0, p_discount_amount, p_payment_method, 'Paid');
+    INSERT INTO Sales (CustomerID, StoreID, TotalAmount, TaxAmount, DiscountAmount, PaymentMethod, PaymentStatus, PointsUsed)
+    VALUES (p_customer_id, p_store_id, 0, 0, p_discount_amount + v_points_discount, p_payment_method, 'Paid', p_points_used);
     
     SET p_sale_id = LAST_INSERT_ID();
     
@@ -933,18 +1273,17 @@ BEGIN
     END WHILE;
     
     -- Calculate tax (10%)
-    SET v_tax_amount = (v_total_amount - p_discount_amount) * 0.10;
+    SET v_tax_amount = (v_total_amount - (p_discount_amount + v_points_discount)) * 0.10;
     
     -- Update sale totals
     UPDATE Sales 
-    SET TotalAmount = v_total_amount, TaxAmount = v_tax_amount
+    SET TotalAmount = v_total_amount, TaxAmount = v_tax_amount, PointsEarned = FLOOR((v_total_amount + v_tax_amount - (p_discount_amount + v_points_discount)) / 10)
     WHERE SaleID = p_sale_id;
     
-    -- Update customer loyalty points (1 point per $10)
+    -- Update customer loyalty points
     IF p_customer_id IS NOT NULL THEN
-        SET v_loyalty_points = FLOOR((v_total_amount + v_tax_amount - p_discount_amount) / 10);
         UPDATE Customers 
-        SET LoyaltyPoints = LoyaltyPoints + v_loyalty_points
+        SET LoyaltyPoints = LoyaltyPoints - p_points_used + FLOOR((v_total_amount + v_tax_amount - (p_discount_amount + v_points_discount)) / 10)
         WHERE CustomerID = p_customer_id;
     END IF;
     
@@ -1116,4 +1455,4 @@ DELIMITER ;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
--- Dump completed on 2025-10-22 13:18:29
+-- Dump completed on 2025-10-28 16:53:17
