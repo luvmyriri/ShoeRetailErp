@@ -136,8 +136,7 @@ if (!in_array($userRole, $allowedRoles)) {
                                 </select>
                             </div>
                             <div id="paginationButtons">
-                                <!-- Pagination buttons will be inserted here -->
-                            </div>
+                                </div>
                         </div>
                     </div>
                 </div>
@@ -177,7 +176,6 @@ if (!in_array($userRole, $allowedRoles)) {
         </main>
     </div>
 
-    <!-- Bulk Restock Request Modal -->
     <div id="bulkRestockModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; overflow: auto;">
         <div style="background: white; padding: 1.5rem; border-radius: 8px; width: 90%; max-width: 800px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); margin: auto; max-height: 90vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -191,6 +189,14 @@ if (!in_array($userRole, $allowedRoles)) {
                 <div style="margin-bottom: 1rem; padding: 0.75rem; background: #e8f4f8; border-radius: 4px;">
                     <strong><i class="fas fa-store"></i> Store:</strong> Maria Collections Bagong Silang
                 </div>
+                
+                <div style="margin-bottom: 1rem; padding-bottom: 1rem; border-bottom: 1px solid #ddd;">
+                    <button type="button" class="btn btn-success btn-sm" onclick="openAddNewProductModal()">
+                        <i class="fas fa-plus"></i> Add New Product
+                    </button>
+                    <span style="margin-left: 0.5rem; font-size: 13px; color: #666;">Add a product variant that isn't in the system yet.</span>
+                </div>
+                
                 <div style="max-height: 400px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px;">
                     <table class="table" style="margin: 0;">
                         <thead style="position: sticky; top: 0; background: #f8f9fa; z-index: 1;">
@@ -202,8 +208,7 @@ if (!in_array($userRole, $allowedRoles)) {
                             </tr>
                         </thead>
                         <tbody id="bulkRestockProductList">
-                            <!-- Products will be loaded here -->
-                        </tbody>
+                            </tbody>
                     </table>
                 </div>
                 <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
@@ -214,7 +219,32 @@ if (!in_array($userRole, $allowedRoles)) {
         </div>
     </div>
 
-    <!-- Edit Product Modal -->
+    <div id="addNewProductModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 10001; align-items: center; justify-content: center; overflow: auto;">
+        <div style="background: white; padding: 1.5rem; border-radius: 8px; width: 90%; max-width: 450px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); margin: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0; font-size: 18px;">Add New Product to Request</h3>
+                <button onclick="closeAddNewProductModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 0; width: 24px; height: 24px;">&times;</button>
+            </div>
+            <form id="addNewProductForm" style="display: flex; flex-direction: column; gap: 0.75rem;">
+                <input type="text" id="new_brand" placeholder="Brand" required class="form-control" style="padding: 0.5rem; font-size: 14px;">
+                <input type="text" id="new_model" placeholder="Model/Style" required class="form-control" style="padding: 0.5rem; font-size: 14px;">
+                <input type="text" id="new_size" placeholder="Size" required class="form-control" style="padding: 0.5rem; font-size: 14px;">
+                <input type="text" id="new_color" placeholder="Color" required class="form-control" style="padding: 0.5rem; font-size: 14px;">
+                <input type="number" id="new_cost_price" placeholder="Cost Price" step="0.01" min="0" required class="form-control" style="padding: 0.5rem; font-size: 14px;">
+                <input type="number" id="new_selling_price" placeholder="Selling Price" step="0.01" min="0" required class="form-control" style="padding: 0.5rem; font-size: 14px;">
+                <input type="number" id="new_min_stock" placeholder="Min Stock Level" value="10" required class="form-control" style="padding: 0.5rem; font-size: 14px;">
+                <input type="number" id="new_max_stock" placeholder="Max Stock Level" value="50" required class="form-control" style="padding: 0.5rem; font-size: 14px;">
+                <hr style="margin: 0.25rem 0;">
+                <label style="font-weight: 600; font-size: 14px;">Quantity to Request:</label>
+                <input type="number" id="new_quantity" placeholder="Quantity to Request" min="1" required class="form-control" style="padding: 0.5rem; font-size: 14px; border: 2px solid #714B67;">
+                <div style="display: flex; gap: 0.75rem; margin-top: 0.5rem;">
+                    <button type="button" class="btn btn-outline" onclick="closeAddNewProductModal()" style="flex: 1; padding: 0.5rem; font-size: 14px;">Cancel</button>
+                    <button type="submit" class="btn btn-success" style="flex: 1; padding: 0.5rem; font-size: 14px;"><i class="fas fa-plus"></i> Add to List</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
     <div id="editProductModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; overflow: auto;">
         <div style="background: white; padding: 1.5rem; border-radius: 8px; width: 90%; max-width: 450px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); margin: auto; max-height: 90vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -244,7 +274,6 @@ if (!in_array($userRole, $allowedRoles)) {
         </div>
     </div>
 
-    <!-- Request Restock Modal -->
     <div id="restockModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; overflow: auto;">
         <div style="background: white; padding: 1.5rem; border-radius: 8px; width: 90%; max-width: 450px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); margin: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -269,7 +298,6 @@ if (!in_array($userRole, $allowedRoles)) {
         </div>
     </div>
 
-    <!-- View Product Modal -->
     <div id="viewProductModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; overflow: auto;">
         <div style="background: white; padding: 1.5rem; border-radius: 8px; width: 90%; max-width: 600px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); margin: auto; max-height: 90vh; overflow-y: auto;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
@@ -277,8 +305,7 @@ if (!in_array($userRole, $allowedRoles)) {
                 <button onclick="closeViewProductModal()" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 0; width: 24px; height: 24px;">&times;</button>
             </div>
             <div id="viewProductContent" style="font-size: 14px;">
-                <!-- Content will be loaded dynamically -->
-            </div>
+                </div>
             <div style="margin-top: 1rem; text-align: right;">
                 <button class="btn btn-outline" onclick="closeViewProductModal()">Close</button>
             </div>
@@ -325,6 +352,9 @@ if (!in_array($userRole, $allowedRoles)) {
             document.getElementById('editProductForm').addEventListener('submit', handleEditProduct);
             document.getElementById('restockForm').addEventListener('submit', handleRestockRequest);
             document.getElementById('bulkRestockForm').addEventListener('submit', handleBulkRestockRequest);
+            
+            // NEW: Add new product form submission
+            document.getElementById('addNewProductForm').addEventListener('submit', handleAddNewProductToList);
         });
 
         // Load inventory data
@@ -498,14 +528,18 @@ if (!in_array($userRole, $allowedRoles)) {
         function openBulkRestockModal() {
             // Load products into the bulk restock modal
             const tbody = document.getElementById('bulkRestockProductList');
-            tbody.innerHTML = currentProducts.map(product => `
-                <tr>
-                    <td><input type="checkbox" class="product-checkbox" value="${product.ProductID}" data-sku="${product.SKU}"></td>
-                    <td><strong>${product.Brand} ${product.Model}</strong><br><small>${product.SKU} - Size ${product.Size}, ${product.Color}</small></td>
-                    <td>${product.Quantity || 0}</td>
-                    <td><input type="number" min="1" value="${product.MinStockLevel || 10}" class="form-control" style="padding: 0.3rem; font-size: 13px;" id="qty_${product.ProductID}" disabled></td>
-                </tr>
-            `).join('');
+            tbody.innerHTML = ''; // Clear previous entries
+            
+            currentProducts.forEach(product => {
+                const row = `
+                    <tr>
+                        <td><input type="checkbox" class="product-checkbox" value="${product.ProductID}" data-sku="${product.SKU}"></td>
+                        <td><strong>${product.Brand} ${product.Model}</strong><br><small>${product.SKU} - Size ${product.Size}, ${product.Color}</small></td>
+                        <td>${product.Quantity || 0}</td>
+                        <td><input type="number" min="1" value="${product.MinStockLevel || 10}" class="form-control" style="padding: 0.3rem; font-size: 13px;" id="qty_${product.ProductID}" disabled></td>
+                    </tr>`;
+                tbody.innerHTML += row;
+            });
             
             // Enable quantity input when checkbox is checked
             document.querySelectorAll('.product-checkbox').forEach(checkbox => {
@@ -521,6 +555,70 @@ if (!in_array($userRole, $allowedRoles)) {
         function closeBulkRestockModal() {
             document.getElementById('bulkRestockModal').style.display = 'none';
             document.getElementById('bulkRestockForm').reset();
+            // Clear dynamically added new products
+            document.getElementById('bulkRestockProductList').innerHTML = '';
+        }
+        
+        // NEW: Open/Close "Add New Product" Modal
+        function openAddNewProductModal() {
+            document.getElementById('addNewProductModal').style.display = 'flex';
+        }
+
+        function closeAddNewProductModal() {
+            document.getElementById('addNewProductModal').style.display = 'none';
+            document.getElementById('addNewProductForm').reset();
+        }
+
+        // NEW: Handle adding a new product to the restock list
+        function handleAddNewProductToList(e) {
+            e.preventDefault();
+            
+            const brand = document.getElementById('new_brand').value;
+            const model = document.getElementById('new_model').value;
+            const size = document.getElementById('new_size').value;
+            const color = document.getElementById('new_color').value;
+            const costPrice = document.getElementById('new_cost_price').value;
+            const sellingPrice = document.getElementById('new_selling_price').value;
+            const minStock = document.getElementById('new_min_stock').value;
+            const maxStock = document.getElementById('new_max_stock').value;
+            const quantity = document.getElementById('new_quantity').value;
+            
+            if (quantity <= 0) {
+                showAlert('Quantity to Request must be at least 1', 'warning');
+                return;
+            }
+            
+            const tempId = 'NEW_' + Date.now();
+            
+            const newRowHTML = `
+                <tr id="row_${tempId}" style="background: #f0fff0;">
+                    <td><input type="checkbox" class="product-checkbox" value="${tempId}" 
+                               data-is-new="true"
+                               data-brand="${brand}"
+                               data-model="${model}"
+                               data-size="${size}"
+                               data-color="${color}"
+                               data-cost-price="${costPrice}"
+                               data-selling-price="${sellingPrice}"
+                               data-min-stock="${minStock}"
+                               data-max-stock="${maxStock}"
+                               checked></td>
+                    <td><strong>${brand} ${model}</strong><br><small>Size ${size}, ${color} <span class="badge badge-success">NEW</span></small></td>
+                    <td>0</td>
+                    <td><input type="number" min="1" value="${quantity}" class="form-control" style="padding: 0.3rem; font-size: 13px;" id="qty_${tempId}"></td>
+                </tr>
+            `;
+            
+            // Prepend to the list
+            document.getElementById('bulkRestockProductList').insertAdjacentHTML('afterbegin', newRowHTML);
+            
+            // Re-attach listener for the new checkbox
+            document.querySelector(`#row_${tempId} .product-checkbox`).addEventListener('change', function() {
+                const qtyInput = document.getElementById(`qty_${this.value}`);
+                qtyInput.disabled = !this.checked;
+            });
+            
+            closeAddNewProductModal();
         }
         
         function toggleAllProducts(checkbox) {
@@ -571,13 +669,31 @@ if (!in_array($userRole, $allowedRoles)) {
             
             const selectedProducts = [];
             document.querySelectorAll('.product-checkbox:checked').forEach(checkbox => {
-                const productId = checkbox.value;
+                const isNew = checkbox.dataset.isNew === 'true';
+                const productId = checkbox.value; // This is tempId for new products
                 const quantity = document.getElementById(`qty_${productId}`).value;
+                
                 if (quantity && quantity > 0) {
-                    selectedProducts.push({
-                        product_id: productId,
-                        quantity: parseInt(quantity)
-                    });
+                    if (isNew) {
+                        selectedProducts.push({
+                            is_new: true,
+                            brand: checkbox.dataset.brand,
+                            model: checkbox.dataset.model,
+                            size: checkbox.dataset.size,
+                            color: checkbox.dataset.color,
+                            cost_price: checkbox.dataset.costPrice,
+                            selling_price: checkbox.dataset.sellingPrice,
+                            min_stock: checkbox.dataset.minStock,
+                            max_stock: checkbox.dataset.maxStock,
+                            quantity: parseInt(quantity)
+                        });
+                    } else {
+                        selectedProducts.push({
+                            is_new: false,
+                            product_id: productId,
+                            quantity: parseInt(quantity)
+                        });
+                    }
                 }
             });
             
@@ -598,8 +714,9 @@ if (!in_array($userRole, $allowedRoles)) {
             .then(r => r.json())
             .then(data => {
                 if (data.success) {
-                    showAlert(`Successfully created ${selectedProducts.length} restock request(s)!`, 'success');
+                    showAlert(data.message || `Successfully created ${selectedProducts.length} restock request(s)!`, 'success');
                     closeBulkRestockModal();
+                    loadInventory(); // Refresh inventory to show new products (if they get stock)
                 } else {
                     showAlert('Error: ' + data.message, 'danger');
                 }
@@ -975,4 +1092,3 @@ if (!in_array($userRole, $allowedRoles)) {
     <script src="../js/app.js"></script>
 </body>
 </html>
-
