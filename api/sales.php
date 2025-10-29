@@ -122,6 +122,44 @@ try {
             jsonResponse(['success' => true, 'data' => $result]);
             break;
 
+        // ==========================================
+        // NEW ENDPOINT: Get Products for POS
+        // ==========================================
+        case 'get_products':
+            if (!hasPermission(['Cashier', 'Manager'])) {
+                throw new Exception('Unauthorized');
+            }
+
+            $storeId = $_SESSION['store_id'] ?? null;
+            if (!$storeId) {
+                throw new Exception('Store not set in session');
+            }
+
+            $stmt = $pdo->prepare("
+                SELECT 
+                    p.ProductID      AS id,
+                    p.SKU,
+                    p.Brand,
+                    p.Model,
+                    p.Size,
+                    p.Color,
+                    p.SellingPrice   AS price,
+                    p.CostPrice      AS costPrice,
+                    COALESCE(i.Quantity, 0) AS stock
+                FROM products p
+                LEFT JOIN inventory i 
+                       ON p.ProductID = i.ProductID 
+                      AND i.StoreID = ?
+                WHERE p.Status = 'Active'
+                ORDER BY p.Brand, p.Model, p.Size
+            ");
+
+            $stmt->execute([$storeId]);
+            $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            jsonResponse(['success' => true, 'data' => $products]);
+            break;
+
         default:
             throw new Exception('Invalid action');
     }
