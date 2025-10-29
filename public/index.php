@@ -11,6 +11,11 @@ error_log("Index.php - Session ID: " . session_id());
 error_log("Index.php - Session data: " . print_r($_SESSION, true));
 
 // Check if user is logged in
+// Prevent caching of authenticated pages
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Cache-Control: post-check=0, pre-check=0', false);
+header('Pragma: no-cache');
+
 if (!isset($_SESSION['user_id'])) {
     // Debug output before redirect
     error_log("Index.php - User not logged in, redirecting to login");
@@ -253,6 +258,7 @@ error_log("Index.php - User is logged in: " . $_SESSION['username']);
             </div>
         </main>
     </div>
+    <script src="js/app.js"></script>
     <script src="js/erp-app.js"></script>
     <script>
         // Initialize dashboard on load
