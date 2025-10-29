@@ -1,3 +1,7 @@
+[2025-10-22 06:57:00] Login system error Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-10-22 06:57:05] Login system error Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-10-22 06:57:14] Login system error Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-10-24 10:52:38] Failed login attempt Context: {"username":"admin"}
 [2025-10-27 08:57:13] Inventory API error Context: {"action":null,"error":"Invalid action"}
 [2025-10-27 08:58:49] Customer API error Context: {"action":null,"error":"Invalid action"}
 [2025-10-27 17:10:37] Failed login attempt Context: {"username":"admin"}
