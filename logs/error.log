@@ -192,3 +192,45 @@
 [2025-10-28 14:52:02] Query failed Context: {"sql":"\r\n    SELECT i.id, i.invoice_number, i.sale_id, i.total_amount, i.invoice_date,\r\n           s.payment_method, c.first_name AS cust_first, c.last_name AS cust_last, st.name AS store_name\r\n    FROM invoices i\r\n    JOIN sales s ON i.sale_id = s.id\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    LEFT JOIN stores st ON s.store_id = st.id\r\n    ORDER BY i.invoice_date DESC\r\n    LIMIT 50\r\n","error":"Database connection failed. Please check your configuration."}
 [2025-10-28 14:52:02] Query failed Context: {"sql":"\r\n    SELECT r.id, r.sale_id, r.return_date, r.reason, r.refund_amount, \r\n           c.first_name AS cust_first, c.last_name AS cust_last\r\n    FROM returns r\r\n    JOIN sales s ON r.sale_id = s.id\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    ORDER BY r.return_date DESC\r\n    LIMIT 50\r\n","error":"Database connection failed. Please check your configuration."}
 [2025-10-28 15:08:50] Login system error Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-10-22 06:57:00] Login system error Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-10-22 06:57:05] Login system error Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-10-22 06:57:14] Login system error Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-10-24 10:52:38] Failed login attempt Context: {"username":"admin"}
+[2025-10-27 08:57:13] Inventory API error Context: {"action":null,"error":"Invalid action"}
+[2025-10-27 08:58:49] Customer API error Context: {"action":null,"error":"Invalid action"}
+[2025-10-27 17:10:37] Failed login attempt Context: {"username":"admin"}
+[2025-10-27 17:29:59] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-10-27 17:29:59] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-10-27 17:30:29] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-10-27 17:30:29] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-10-27 17:31:14] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-10-27 17:31:14] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-10-27 17:31:17] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-10-27 17:31:17] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-10-27 17:31:18] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-10-27 17:31:18] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-10-27 17:31:46] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-10-27 17:31:46] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-10-27 17:33:05] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-10-27 17:33:05] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-10-27 17:33:48] Login system error Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-10-27 19:23:26] Inventory API error Context: {"action":"get_analytics","error":"Invalid action"}
+[2025-10-27 19:23:43] Inventory API error Context: {"action":"get_analytics","error":"Invalid action"}
+[2025-10-27 19:29:04] Inventory API error Context: {"action":"get_analytics","error":"Invalid action"}
+[2025-10-27 19:33:25] Inventory API error Context: {"action":"get_analytics","error":"Invalid action"}
+[2025-10-27 19:47:14] Self-registration failed Context: {"error":"Database query failed.","data":{"username":"inventory","password":"password","first_name":"Val Javez","last_name":"Lamsen","email":"vjlamsenlamsen28@gmail.com","role":"Inventory","store_id":"1"}}
+[2025-10-27 21:44:09] Inventory API error Context: {"action":"get_analytics","error":"Invalid action"}
+[2025-10-28 03:48:18] Inventory API error Context: {"action":"get_analytics","error":"Invalid action"}
+[2025-10-28 03:48:19] Inventory API error Context: {"action":"get_analytics","error":"Invalid action"}
+[2025-10-28 16:56:31] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-10-28 16:56:31] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-10-28 16:56:36] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-10-28 16:56:36] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-10-28 16:56:48] Login system error Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-10-28 16:57:38] Login system error Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-10-28 16:57:46] Login system error Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-10-28 16:58:13] Inventory API error Context: {"action":"get_analytics","error":"Invalid action"}
+[2025-10-28 17:20:22] Inventory API error Context: {"action":"bulk_request_restock","error":"Invalid action"}
+[2025-10-28 17:51:49] Inventory API error Context: {"action":"get_analytics","error":"Invalid action"}
+[2025-10-28 18:06:30] Inventory API error Context: {"action":"get_analytics","error":"Invalid action"}
+[2025-10-28 18:13:31] Inventory API error Context: {"action":"get_analytics","error":"Invalid action"}

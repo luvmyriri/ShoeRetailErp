@@ -1,9 +1,16 @@
 <?php
-
+// Enable error reporting for debugging
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 
 session_start();
 require_once 'includes/core_functions.php';
 
+// REMOVED: Redirect if already logged in - this was causing the loop
+// if (isLoggedIn()) {
+//     header('Location: index.php');
+//     exit;
+// }
 // Prevent caching of login page
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Cache-Control: post-check=0, pre-check=0', false);
@@ -19,7 +26,7 @@ $error = '';
 $success = '';
 
 // Handle login form submission
-if ($_POST && isset($_POST['username']) && isset($_POST['password'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset($_POST['password'])) {
     $username = sanitizeInput($_POST['username']);
     $password = $_POST['password'];
     
@@ -28,6 +35,11 @@ if ($_POST && isset($_POST['username']) && isset($_POST['password'])) {
     } else {
         try {
             if (authenticateUser($username, $password)) {
+                // Debug: Check what was set in session
+                error_log("Login successful. Session data: " . print_r($_SESSION, true));
+                
+                // Redirect to dashboard
+                header('Location: /public/index.php');
                 header('Location: public/index.php');
                 exit;
             } else {
@@ -38,6 +50,11 @@ if ($_POST && isset($_POST['username']) && isset($_POST['password'])) {
             logError('Login system error', ['error' => $e->getMessage()]);
         }
     }
+}
+
+// Debug: Show current session status
+if (isLoggedIn()) {
+    echo "<!-- DEBUG: User is logged in. Session data: " . print_r($_SESSION, true) . " -->";
 }
 ?>
 <!DOCTYPE html>
@@ -258,6 +275,11 @@ if ($_POST && isset($_POST['username']) && isset($_POST['password'])) {
             color: #78281F;
         }
 
+        .alert-success {
+            background-color: #D4EDDA;
+            color: #155724;
+        }
+
         .alert i {
             margin-right: 0.5rem;
         }
@@ -292,6 +314,13 @@ if ($_POST && isset($_POST['username']) && isset($_POST['password'])) {
                 <div class="alert alert-danger">
                     <i class="fas fa-exclamation-circle"></i>
                     <?php echo htmlspecialchars($error); ?>
+                </div>
+                <?php endif; ?>
+
+                <?php if ($success): ?>
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    <?php echo htmlspecialchars($success); ?>
                 </div>
                 <?php endif; ?>
 

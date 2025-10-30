@@ -12,9 +12,9 @@ class Database {
     
     // Database configuration
     private $host = 'localhost';
-    private $database = 'ShoeRetailERP';
+    private $database = 'shoeretailerp';
     private $username = 'root';  // Change to your MySQL username
-    private $password = '0428';      // Change to your MySQL password
+    private $password = 'DaniloNagaaralSaUCC';      // Change to your MySQL password
     private $charset = 'utf8mb4';
     private $options = [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
@@ -24,7 +24,7 @@ class Database {
     ];
     
     /**
-     * Private constructor to prevent multiple instances
+     * Private constructor to prevent multiple instances    
      */
     private function __construct() {
         $this->connect();

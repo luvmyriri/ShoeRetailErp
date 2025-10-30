@@ -11,11 +11,6 @@ error_log("Index.php - Session ID: " . session_id());
 error_log("Index.php - Session data: " . print_r($_SESSION, true));
 
 // Check if user is logged in
-// Prevent caching of authenticated pages
-header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-header('Cache-Control: post-check=0, pre-check=0', false);
-header('Pragma: no-cache');
-
 if (!isset($_SESSION['user_id'])) {
     // Debug output before redirect
     error_log("Index.php - User not logged in, redirecting to login");
@@ -42,7 +37,7 @@ error_log("Index.php - User is logged in: " . $_SESSION['username']);
             <div class="page-header">
                 <div class="page-header-title">
                     <h1>Dashboard</h1>
-                    <div class="page-header-breadcrumb"><a href="index.php">Home</a></div>
+                    <div class="page-header-breadcrumb"><a href="/ShoeRetailErp/public/index.php">Home</a></div>
                 </div>
                 <div class="page-header-actions">
                     <button class="btn btn-primary" onclick="ERP.refreshDashboard()"><i class="fas fa-sync-alt"></i> Refresh</button>
@@ -188,7 +183,7 @@ error_log("Index.php - User is logged in: " . $_SESSION['username']);
             </div>
             <div class="row" style="margin-bottom: 1rem;">
                 <div class="col-md-4" style="margin-bottom: 0.75rem;">
-                    <a href="inventory/index.php" style="text-decoration: none; color: inherit;">
+                    <a href="/ShoeRetailErp/public/inventory/index.php" style="text-decoration: none; color: inherit;">
                         <div class="card" style="cursor: pointer; transition: all 0.3s;" onmouseover="this.style.boxShadow='0 8px 20px rgba(0,0,0,0.15)'" onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)'">
                             <div class="card-body" style="text-align: center; padding: 1.5rem 1rem;">
                                 <div style="font-size: 40px; margin-bottom: 0.75rem;">📦</div>
@@ -199,7 +194,7 @@ error_log("Index.php - User is logged in: " . $_SESSION['username']);
                     </a>
                 </div>
                 <div class="col-md-4" style="margin-bottom: 0.75rem;">
-                    <a href="sales/index.php" style="text-decoration: none; color: inherit;">
+                    <a href="/ShoeRetailErp/public/sales/index.php" style="text-decoration: none; color: inherit;">
                         <div class="card" style="cursor: pointer; transition: all 0.3s;" onmouseover="this.style.boxShadow='0 8px 20px rgba(0,0,0,0.15)'" onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)'">
                             <div class="card-body" style="text-align: center; padding: 1.5rem 1rem;">
                                 <div style="font-size: 40px; margin-bottom: 0.75rem;">💰</div>
@@ -210,7 +205,7 @@ error_log("Index.php - User is logged in: " . $_SESSION['username']);
                     </a>
                 </div>
                 <div class="col-md-4" style="margin-bottom: 0.75rem;">
-                    <a href="procurement/index.php" style="text-decoration: none; color: inherit;">
+                    <a href="/ShoeRetailErp/public/procurement/index.php" style="text-decoration: none; color: inherit;">
                         <div class="card" style="cursor: pointer; transition: all 0.3s;" onmouseover="this.style.boxShadow='0 8px 20px rgba(0,0,0,0.15)'" onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)'">
                             <div class="card-body" style="text-align: center; padding: 1.5rem 1rem;">
                                 <div style="font-size: 40px; margin-bottom: 0.75rem;">🏭</div>
@@ -223,7 +218,7 @@ error_log("Index.php - User is logged in: " . $_SESSION['username']);
             </div>
             <div class="row">
                 <div class="col-md-4" style="margin-bottom: 0.75rem;">
-                    <a href="accounting/index.php" style="text-decoration: none; color: inherit;">
+                    <a href="/ShoeRetailErp/public/accounting/index.php" style="text-decoration: none; color: inherit;">
                         <div class="card" style="cursor: pointer; transition: all 0.3s;" onmouseover="this.style.boxShadow='0 8px 20px rgba(0,0,0,0.15)'" onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)'">
                             <div class="card-body" style="text-align: center; padding: 1.5rem 1rem;">
                                 <div style="font-size: 40px; margin-bottom: 0.75rem;">📊</div>
@@ -234,7 +229,7 @@ error_log("Index.php - User is logged in: " . $_SESSION['username']);
                     </a>
                 </div>
                 <div class="col-md-4" style="margin-bottom: 0.75rem;">
-                    <a href="customers/index.php" style="text-decoration: none; color: inherit;">
+                    <a href="/ShoeRetailErp/public/customers/index.php" style="text-decoration: none; color: inherit;">
                         <div class="card" style="cursor: pointer; transition: all 0.3s;" onmouseover="this.style.boxShadow='0 8px 20px rgba(0,0,0,0.15)'" onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)'">
                             <div class="card-body" style="text-align: center; padding: 1.5rem 1rem;">
                                 <div style="font-size: 40px; margin-bottom: 0.75rem;">👥</div>
@@ -245,7 +240,7 @@ error_log("Index.php - User is logged in: " . $_SESSION['username']);
                     </a>
                 </div>
                 <div class="col-md-4" style="margin-bottom: 0.75rem;">
-                    <a href="hr/index.php" style="text-decoration: none; color: inherit;">
+                    <a href="/ShoeRetailErp/public/hr/index.php" style="text-decoration: none; color: inherit;">
                         <div class="card" style="cursor: pointer; transition: all 0.3s;" onmouseover="this.style.boxShadow='0 8px 20px rgba(0,0,0,0.15)'" onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)'">
                             <div class="card-body" style="text-align: center; padding: 1.5rem 1rem;">
                                 <div style="font-size: 40px; margin-bottom: 0.75rem;">👔</div>
@@ -258,7 +253,6 @@ error_log("Index.php - User is logged in: " . $_SESSION['username']);
             </div>
         </main>
     </div>
-    <script src="js/app.js"></script>
     <script src="js/erp-app.js"></script>
     <script>
         // Initialize dashboard on load

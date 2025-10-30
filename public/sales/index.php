@@ -1,5 +1,10 @@
 <?php
 session_start();
+
+header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+header('Cache-Control: post-check=0, pre-check=0', false);
+header('Pragma: no-cache');
+
 if (!isset($_SESSION['user_id'])) {
     header('Location: /ShoeRetailErp/login.php');
     exit;
@@ -237,6 +242,14 @@ $nav_map = [
     'customers' => $current_dir === 'customers',
     'hr' => $current_dir === 'hr',
 ];
+// Role-based access control
+$userRole = $_SESSION['role'] ?? '';
+$allowedRoles = ['Admin', 'Manager', 'Sales', 'Cashier'];
+
+if (!in_array($userRole, $allowedRoles)) {
+    header('Location: /ShoeRetailErp/public/index.php?error=access_denied');
+    exit;
+}
 ?>
 
 <!DOCTYPE html>
