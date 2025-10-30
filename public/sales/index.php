@@ -22,10 +22,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $discount = floatval($_POST['discountAmount'] ?? 0);
         $points_used = floatval($_POST['pointsUsed'] ?? 0);
         $notes = $_POST['saleNotes'] ?? '';
-        $user_id = $_SESSION['user_id'] ?? 1; // fallback for testing
+        $user_id = $_SESSION['user_id'];
         $sale_items_json = $_POST['sale_items_json'] ?? '[]';
-        $sale_items = json_decode($sale_items_json, true);
 
+        $sale_items = json_decode($sale_items_json, true);
         if (!is_array($sale_items) || count($sale_items) === 0) {
             add_alert('danger', 'Sale must contain at least one product.');
             header('Location: ' . $_SERVER['REQUEST_URI']);
@@ -38,7 +38,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $price = floatval($it['price'] ?? 0);
             $subtotal += $qty * $price;
         }
-
         $total_discount = $discount + $points_used;
         $taxable = max(0.0, $subtotal - $total_discount);
         $tax = $taxable * 0.10;
@@ -48,11 +47,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $db->beginTransaction();
 
         try {
-            $sale_id = $db->insert(
-                "INSERT INTO sales (customer_id, store_id, subtotal, tax, discount, points_used, total_amount, payment_method, notes, created_by, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
-                [$customer_id, $store_id, $subtotal, $tax, $discount, $points_used, $total, $payment_method, $notes, $user_id]
-            );
+            $sale_id = $db->insert("
+                INSERT INTO sales
+                    (customer_id, store_id, subtotal, tax, discount, points_used, total_amount, payment_method, notes, created_by, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            ", [$customer_id, $store_id, $subtotal, $tax, $discount, $points_used, $total, $payment_method, $notes, $user_id]);
 
             foreach ($sale_items as $it) {
                 $product_id = intval($it['product_id']);
@@ -60,33 +59,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $unit_price = floatval($it['price']);
                 $line_subtotal = $quantity * $unit_price;
 
-                $db->execute(
-                    "INSERT INTO sales_items (sale_id, product_id, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?)",
-                    [$sale_id, $product_id, $quantity, $unit_price, $line_subtotal]
-                );
+                $db->execute("INSERT INTO sales_items (sale_id, product_id, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?)",
+                    [$sale_id, $product_id, $quantity, $unit_price, $line_subtotal]);
 
                 $db->execute("UPDATE products SET stock = stock - ? WHERE id = ?", [$quantity, $product_id]);
             }
 
-            $invoiceNumber = 'INV-' . date('Ymd') . '-' . str_pad($sale_id, 4, '0', STR_PAD_LEFT);
-            $db->execute(
-                "INSERT INTO invoices (sale_id, invoice_number, invoice_date, total_amount, created_at)
-                 VALUES (?, ?, NOW(), ?, NOW())",
-                [$sale_id, $invoiceNumber, $total]
-            );
+        
+// Create invoice
+    $invoiceNumber = 'INV-' . date('Ymd') . '-' . str_pad($sale_id, 4, '0', STR_PAD_LEFT);
+    $db->execute(
+        "INSERT INTO invoices 
+            (sale_id, invoice_number, invoice_date, total_amount, created_at) 
+         VALUES 
+            (?, ?, NOW(), ?, NOW())",
+        [$sale_id, $invoiceNumber, $total]
+    );
 
-            $db->commit();
-            add_alert('success', 'Sale processed successfully. Sale ID: #' . $sale_id);
-        } catch (Exception $ex) {
-            $db->rollback();
-            add_alert('danger', 'Failed to process sale: ' . $ex->getMessage());
-        }
 
-        header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
-        exit;
-    }
+ $db->commit();
+    add_alert('success', 'Sale processed successfully. Sale ID: #' . $sale_id);
+} catch (Exception $ex) {
+    $db->rollback();
+    add_alert('danger', 'Failed to process sale: ' . $ex->getMessage());
+}
 
-    elseif ($action === 'process_return') {
+header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
+exit;
+
+    } elseif ($action === 'process_return') {
         $original_sale_id = intval($_POST['returnSaleId']);
         $return_date = $_POST['returnDate'] ?? date('Y-m-d');
         $reason = $_POST['returnReason'] ?? '';
@@ -94,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $return_items_json = $_POST['return_items_json'] ?? '[]';
         $return_items = json_decode($return_items_json, true);
         $notes = $_POST['returnNotes'] ?? '';
-        $user_id = $_SESSION['user_id'] ?? 1;
+        $user_id = $_SESSION['user_id'];
 
         if (!is_array($return_items) || count($return_items) === 0) {
             add_alert('danger', 'Return must contain items.');
@@ -104,13 +105,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $db = getDB();
         $db->beginTransaction();
-
         try {
-            $return_id = $db->insert(
-                "INSERT INTO returns (sale_id, return_date, reason, refund_method, notes, processed_by, created_at)
-                 VALUES (?, ?, ?, ?, ?, ?, NOW())",
-                [$original_sale_id, $return_date, $reason, $refund_method, $notes, $user_id]
-            );
+            $return_id = $db->insert("
+                INSERT INTO returns (sale_id, return_date, reason, refund_method, notes, processed_by, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, NOW())
+            ", [$original_sale_id, $return_date, $reason, $refund_method, $notes, $user_id]);
 
             foreach ($return_items as $it) {
                 $product_id = intval($it['product_id']);
@@ -118,11 +117,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $refund_amount = floatval($it['refund_amount'] ?? 0);
                 $reason_detail = $it['reason_detail'] ?? '';
 
-                $db->execute(
-                    "INSERT INTO return_items (return_id, product_id, quantity, refund_amount, reason_detail)
-                     VALUES (?, ?, ?, ?, ?)",
-                    [$return_id, $product_id, $quantity, $refund_amount, $reason_detail]
-                );
+                $db->execute("INSERT INTO return_items (return_id, product_id, quantity, refund_amount, reason_detail) VALUES (?, ?, ?, ?, ?)",
+                    [$return_id, $product_id, $quantity, $refund_amount, $reason_detail]);
 
                 $db->execute("UPDATE products SET stock = stock + ? WHERE id = ?", [$quantity, $product_id]);
             }
@@ -144,7 +140,7 @@ function safe_query_assoc($sql, $params = []) {
     try {
         return dbFetchAll($sql, $params);
     } catch (Exception $e) {
-        error_log("Query failed: " . $e->getMessage());
+        logError("Query failed", ['sql' => $sql, 'error' => $e->getMessage()]);
         return [];
     }
 }
@@ -166,7 +162,7 @@ try {
     $row = dbFetchOne("SELECT AVG(rating) AS avg_rating FROM product_reviews");
     $stats['avg_rating'] = $row['avg_rating'] ? round((float)$row['avg_rating'], 2) : 0;
 } catch (Exception $e) {
-    error_log("Stats failed: " . $e->getMessage());
+    logError("Stats failed", ['error' => $e->getMessage()]);
 }
 
 // --- Fetch Data ---
@@ -181,7 +177,8 @@ $orders = safe_query_assoc("
     FROM sales s
     LEFT JOIN customers c ON s.customer_id = c.id
     LEFT JOIN stores st ON s.store_id = st.id
-    ORDER BY s.created_at DESC LIMIT 50
+    ORDER BY s.created_at DESC
+    LIMIT 50
 ");
 
 foreach ($orders as &$o) {
@@ -202,7 +199,8 @@ $invoices = safe_query_assoc("
     JOIN sales s ON i.sale_id = s.id
     LEFT JOIN customers c ON s.customer_id = c.id
     LEFT JOIN stores st ON s.store_id = st.id
-    ORDER BY i.invoice_date DESC LIMIT 50
+    ORDER BY i.invoice_date DESC
+    LIMIT 50
 ");
 
 foreach ($invoices as &$inv) {
@@ -217,12 +215,13 @@ unset($inv);
 
 // --- Returns ---
 $returns = safe_query_assoc("
-    SELECT r.id, r.sale_id, r.return_date, r.reason, r.refund_amount,
+    SELECT r.id, r.sale_id, r.return_date, r.reason, r.refund_amount, 
            c.first_name AS cust_first, c.last_name AS cust_last
     FROM returns r
     JOIN sales s ON r.sale_id = s.id
     LEFT JOIN customers c ON s.customer_id = c.id
-    ORDER BY r.return_date DESC LIMIT 50
+    ORDER BY r.return_date DESC
+    LIMIT 50
 ");
 ?>
 
@@ -254,17 +253,16 @@ $returns = safe_query_assoc("
     </style>
 </head>
 <body>
-   
 
-    <div class="alert-container">
-            <?php include '../includes/navbar.php'; ?>
+
+    <div class="alert-container"></div>
+    <?php include '../includes/navbar.php'; ?>
         <?php if (!empty($_SESSION['flash_alert'])): 
             $a = $_SESSION['flash_alert'];
             $cls = $a['type'] === 'success' ? 'alert-success' : ($a['type'] === 'danger' ? 'alert-danger' : 'alert-info');
         ?>
-            <div class="alert <?= $cls; ?>"><?= htmlspecialchars($a['msg']); ?></div>
-            <?php unset($_SESSION['flash_alert']); ?>
-        <?php endif; ?>
+            <div class="alert <?php echo $cls; ?>"><?php echo htmlspecialchars($a['msg']); ?></div>
+        <?php unset($_SESSION['flash_alert']); endif; ?>
     </div>
 
     <div class="main-wrapper" style="margin-left: 0;">
@@ -275,9 +273,8 @@ $returns = safe_query_assoc("
                     <div class="page-header-breadcrumb"><a href="/ShoeRetailErp/public/index.php">Home</a> / Sales</div>
                 </div>
                 <div class="page-header-actions">
-                    <a href="pos.php" style="text-decoration: none;">
-                        <button class="btn btn-primary">Point of Sale</button>
-                    </a>
+                     <a href="pos.php" style="text-decoration: none;">
+                    <button class="btn btn-primary">Point of Sale</button>
                 </div>
             </div>
 
@@ -286,28 +283,28 @@ $returns = safe_query_assoc("
                 <div class="col-md-3" style="margin-bottom: 0.75rem;">
                     <div class="stat-card">
                         <div class="stat-icon">Money</div>
-                        <div class="stat-value">₱<?= number_format($stats['today_sales'], 2); ?></div>
+                        <div class="stat-value">₱<?php echo number_format($stats['today_sales'], 2); ?></div>
                         <div class="stat-label">Today's Sales</div>
                     </div>
                 </div>
                 <div class="col-md-3" style="margin-bottom: 0.75rem;">
                     <div class="stat-card">
                         <div class="stat-icon">Cart</div>
-                        <div class="stat-value"><?= intval($stats['orders_today']); ?></div>
+                        <div class="stat-value"><?php echo intval($stats['orders_today']); ?></div>
                         <div class="stat-label">Orders Today</div>
                     </div>
                 </div>
                 <div class="col-md-3" style="margin-bottom: 0.75rem;">
                     <div class="stat-card">
                         <div class="stat-icon">People</div>
-                        <div class="stat-value"><?= intval($stats['unique_customers_today']); ?></div>
+                        <div class="stat-value"><?php echo intval($stats['unique_customers_today']); ?></div>
                         <div class="stat-label">Unique Customers</div>
                     </div>
                 </div>
                 <div class="col-md-3" style="margin-bottom: 0.75rem;">
                     <div class="stat-card">
                         <div class="stat-icon">Star</div>
-                        <div class="stat-value"><?= number_format($stats['avg_rating'], 1); ?></div>
+                        <div class="stat-value"><?php echo number_format($stats['avg_rating'], 1); ?></div>
                         <div class="stat-label">Avg Rating</div>
                     </div>
                 </div>
@@ -339,7 +336,7 @@ $returns = safe_query_assoc("
                             <select id="orderStore">
                                 <option value="">All Stores</option>
                                 <?php foreach ($stores as $st): ?>
-                                    <option value="<?= $st['id']; ?>"><?= htmlspecialchars($st['name']); ?></option>
+                                    <option value="<?php echo $st['id']; ?>"><?php echo htmlspecialchars($st['name']); ?></option>
                                 <?php endforeach; ?>
                             </select>
                         </div>
@@ -384,32 +381,33 @@ $returns = safe_query_assoc("
                                     <?php if (empty($orders)): ?>
                                         <tr><td colspan="9" style="text-align:center; padding:1.5rem;">No sales yet</td></tr>
                                     <?php else: ?>
-                                        <?php foreach ($orders as $o):
+                                        <?php foreach ($orders as $o): 
                                             $custName = trim(($o['cust_first'] ?? '') . ' ' . ($o['cust_last'] ?? '')) ?: 'Walk-in';
                                             $status = $o['status'] ?? 'Paid';
                                         ?>
                                             <tr>
-                                                <td>#S<?= str_pad($o['sale_id'], 4, '0', STR_PAD_LEFT); ?></td>
-                                                <td><?= htmlspecialchars($custName); ?></td>
-                                                <td><?= htmlspecialchars($o['store_name'] ?? ''); ?></td>
-                                                <td><?= date('M j, Y', strtotime($o['created_at'])); ?></td>
+                                                <td>#S<?php echo str_pad($o['sale_id'], 4, '0', STR_PAD_LEFT); ?></td>
+                                                <td><?php echo htmlspecialchars($custName); ?></td>
+                                                <td><?php echo htmlspecialchars($o['store_name'] ?? ''); ?></td>
+                                                <td><?php echo date('M j, Y', strtotime($o['created_at'])); ?></td>
                                                 <td>
                                                     <div class="items-list">
                                                         <?php foreach ($o['items'] as $it): ?>
                                                             <div>
-                                                                <strong><?= htmlspecialchars($it['product_name']); ?></strong><br>
-                                                                Qty: <?= $it['quantity']; ?> × ₱<?= number_format($it['unit_price'], 2); ?> = ₱<?= number_format($it['quantity'] * $it['unit_price'], 2); ?>
+                                                                <strong><?php echo htmlspecialchars($it['product_name']); ?></strong><br>
+                                                                Qty: <?php echo $it['quantity']; ?> × ₱<?php echo number_format($it['unit_price'], 2); ?>
+                                                                = ₱<?php echo number_format($it['quantity'] * $it['unit_price'], 2); ?>
                                                             </div>
                                                         <?php endforeach; ?>
                                                     </div>
                                                 </td>
-                                                <td>₱<?= number_format($o['total_amount'], 2); ?></td>
-                                                <td><?= htmlspecialchars($o['payment_method']); ?></td>
-                                                <td><span class="badge <?= ($status === 'Paid' ? 'badge-success' : 'badge-warning'); ?>"><?= $status; ?></span></td>
+                                                <td>₱<?php echo number_format($o['total_amount'], 2); ?></td>
+                                                <td><?php echo htmlspecialchars($o['payment_method']); ?></td>
+                                                <td><span class="badge <?php echo ($status === 'Paid' ? 'badge-success' : 'badge-warning'); ?>"><?php echo $status; ?></span></td>
                                                 <td>
                                                     <div class="action-buttons">
-                                                        <button class="btn btn-sm btn-primary" onclick="viewOrder(<?= $o['sale_id']; ?>)">View</button>
-                                                        <button class="btn btn-sm btn-info" onclick="printInvoice(<?= $o['sale_id']; ?>)">Print</button>
+                                                        <button class="btn btn-sm btn-primary" onclick="viewOrder(<?php echo $o['sale_id']; ?>)">View</button>
+                                                        <button class="btn btn-sm btn-info" onclick="printInvoice(<?php echo $o['sale_id']; ?>)">Print</button>
                                                     </div>
                                                 </td>
                                             </tr>
@@ -424,7 +422,98 @@ $returns = safe_query_assoc("
 
             <!-- INVOICES TAB -->
             <div id="invoicesTab" class="tab-pane" style="display:none;">
-                <!-- Similar structure, omitted for brevity -->
+                <div class="filter-section">
+                    <div class="filter-row">
+                        <div class="filter-group">
+                            <label>Invoice Number</label>
+                            <input type="text" id="invoiceNumber" placeholder="Search by invoice #">
+                        </div>
+                        <div class="filter-group">
+                            <label>Date From</label>
+                            <input type="date" id="invoiceDateFrom">
+                        </div>
+                        <div class="filter-group">
+                            <label>Date To</label>
+                            <input type="date" id="invoiceDateTo">
+                        </div>
+                        <div class="filter-group">
+                            <label>Payment Status</label>
+                            <select id="invoiceStatus">
+                                <option value="">All</option>
+                                <option value="Paid">Paid</option>
+                                <option value="Partial">Partial</option>
+                                <option value="Credit">Credit</option>
+                                <option value="Refunded">Refunded</option>
+                            </select>
+                        </div>
+                        <div class="filter-group">
+                            <button class="btn btn-primary" onclick="filterInvoices()">Search</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Invoices</h3>
+                        <button class="btn btn-secondary btn-sm" onclick="exportInvoices()">Export</button>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table" id="invoicesTable">
+                                <thead>
+                                    <tr>
+                                        <th>Invoice #</th>
+                                        <th>Sale ID</th>
+                                        <th>Customer</th>
+                                        <th>Store</th>
+                                        <th>Date</th>
+                                        <th>Items (Qty × Unit Cost)</th>
+                                        <th>Total</th>
+                                        <th>Payment</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if (empty($invoices)): ?>
+                                        <tr><td colspan="9" style="text-align:center; padding:1.5rem;">No invoices yet</td></tr>
+                                    <?php else: ?>
+                                        <?php foreach ($invoices as $inv): 
+                                            $cust = trim(($inv['cust_first'] ?? '') . ' ' . ($inv['cust_last'] ?? '')) ?: 'Walk-in';
+                                        ?>
+                                        <tr>
+                                            <td><?php echo htmlspecialchars($inv['invoice_number']); ?></td>
+                                            <td>#S<?php echo str_pad($inv['sale_id'], 4, '0', STR_PAD_LEFT); ?></td>
+                                            <td><?php echo htmlspecialchars($cust); ?></td>
+                                            <td><?php echo htmlspecialchars($inv['store_name'] ?? ''); ?></td>
+                                            <td><?php echo date('M j, Y', strtotime($inv['invoice_date'])); ?></td>
+                                            <td>
+                                                <div class="items-list">
+                                                    <?php foreach ($inv['items'] as $it): ?>
+                                                        <div>
+                                                            <strong><?php echo htmlspecialchars($it['product_name']); ?></strong><br>
+                                                            Qty: <?php echo $it['quantity']; ?> × ₱<?php echo number_format($it['unit_price'], 2); ?>
+                                                            = ₱<?php echo number_format($it['quantity'] * $it['unit_price'], 2); ?>
+                                                        </div>
+                                                    <?php endforeach; ?>
+                                                </div>
+                                            </td>
+                                            <td>₱<?php echo number_format($inv['total_amount'], 2); ?></td>
+                                            <td><?php echo htmlspecialchars($inv['payment_method']); ?></td>
+                                            <td>
+                                                <div class="action-buttons">
+                                                    <button class="btn btn-sm btn-primary" onclick="viewInvoice(<?php echo $inv['id']; ?>)">View</button>
+                                                    <button class="btn btn-sm btn-info" onclick="printInvoice(<?php echo $inv['sale_id']; ?>)">Print</button>
+                                                    <button class="btn btn-sm btn-secondary" onclick="downloadInvoice(<?php echo $inv['id']; ?>)">Download</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <!-- RETURNS TAB -->
@@ -453,13 +542,13 @@ $returns = safe_query_assoc("
                                         <tr><td colspan="7" style="text-align:center;">No returns</td></tr>
                                     <?php else: foreach ($returns as $r): ?>
                                         <tr>
-                                            <td>#R<?= str_pad($r['id'], 4, '0', STR_PAD_LEFT); ?></td>
-                                            <td>#S<?= str_pad($r['sale_id'], 4, '0', STR_PAD_LEFT); ?></td>
-                                            <td><?= htmlspecialchars(trim(($r['cust_first'] ?? '') . ' ' . ($r['cust_last'] ?? ''))); ?></td>
-                                            <td><?= date('M j, Y', strtotime($r['return_date'])); ?></td>
-                                            <td><?= htmlspecialchars($r['reason']); ?></td>
-                                            <td>₱<?= number_format($r['refund_amount'], 2); ?></td>
-                                            <td><button class="btn btn-sm btn-primary" onclick="viewReturn(<?= $r['id']; ?>)">View</button></td>
+                                            <td>#R<?php echo str_pad($r['id'], 4, '0', STR_PAD_LEFT); ?></td>
+                                            <td>#S<?php echo str_pad($r['sale_id'], 4, '0', STR_PAD_LEFT); ?></td>
+                                            <td><?php echo htmlspecialchars(trim(($r['cust_first'] ?? '') . ' ' . ($r['cust_last'] ?? ''))); ?></td>
+                                            <td><?php echo date('M j, Y', strtotime($r['return_date'])); ?></td>
+                                            <td><?php echo htmlspecialchars($r['reason']); ?></td>
+                                            <td>₱<?php echo number_format($r['refund_amount'], 2); ?></td>
+                                            <td><button class="btn btn-sm btn-primary" onclick="viewReturn(<?php echo $r['id']; ?>)">View</button></td>
                                         </tr>
                                     <?php endforeach; endif; ?>
                                 </tbody>
@@ -469,8 +558,53 @@ $returns = safe_query_assoc("
                 </div>
             </div>
 
-            <!-- REPORTS & ANALYTICS TABS (unchanged) -->
-            <!-- ... -->
+            <!-- REPORTS TAB -->
+            <div id="reportsTab" class="tab-pane" style="display:none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Sales Reports</h3>
+                        <div>
+                            <select id="reportType" style="padding: 0.5rem; margin-right: 0.5rem;">
+                                <option value="daily">Daily</option>
+                                <option value="weekly">Weekly</option>
+                                <option value="monthly">Monthly</option>
+                                <option value="yearly">Yearly</option>
+                            </select>
+                            <button class="btn btn-primary btn-sm" onclick="generateReport()">Generate</button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <p><em>Select a report type and click "Generate" to view real data.</em></p>
+                        <div id="reportOutput"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ANALYTICS TAB -->
+            <div id="analyticsTab" class="tab-pane" style="display:none;">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header"><h3>Sales Trend</h3></div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="salesTrendChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header"><h3>Payment Methods</h3></div>
+                            <div class="card-body">
+                                <div class="chart-container">
+                                    <canvas id="paymentMethodsChart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
             <!-- MODALS -->
             <!-- New Sale Modal -->
@@ -483,31 +617,48 @@ $returns = safe_query_assoc("
                     <form id="newSaleForm" method="post" onsubmit="prepareSaleSubmit(event)">
                         <input type="hidden" name="action" value="process_sale">
                         <input type="hidden" id="sale_items_json" name="sale_items_json" value="[]">
-                        <!-- Form fields -->
                         <div class="form-row">
                             <div class="form-group">
                                 <label>Customer</label>
                                 <select name="customerId" id="customerId" required>
                                     <option value="">Select Customer</option>
                                     <?php foreach ($customers as $c): ?>
-                                        <option value="<?= $c['id']; ?>">
-                                            <?= htmlspecialchars($c['name']); ?> (<?= htmlspecialchars($c['member_code']); ?>)
+                                        <option value="<?php echo $c['id']; ?>">
+                                            <?php echo htmlspecialchars($c['name']); ?> (<?php echo htmlspecialchars($c['member_code']); ?>)
                                         </option>
                                     <?php endforeach; ?>
                                 </select>
                             </div>
-                            <!-- Other fields -->
+                            <div class="form-group">
+                                <label>Store</label>
+                                <select name="storeId" id="storeId" required>
+                                    <option value="">Select Store</option>
+                                    <?php foreach ($stores as $s): ?>
+                                        <option value="<?php echo $s['id']; ?>"><?php echo htmlspecialchars($s['name']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>Payment Method</label>
+                                <select name="paymentMethod" id="paymentMethod">
+                                    <option value="Cash">Cash</option>
+                                    <option value="Card">Card</option>
+                                    <option value="Gcash">GCash</option>
+                                    <option value="Paymaya">PayMaya</option>
+                                    <option value="Credit">Credit</option>
+                                </select>
+                            </div>
                         </div>
-                        <!-- Product items container -->
+
+                        <h3>Products</h3>
                         <div id="productItemsContainer">
-                            <!-- Initial item -->
                             <div class="product-item">
                                 <div class="form-group">
                                     <select class="product-select" required>
                                         <option value="">Select Product</option>
                                         <?php foreach ($products as $p): ?>
-                                            <option value="<?= $p['id']; ?>" data-price="<?= $p['price']; ?>">
-                                                <?= htmlspecialchars($p['name']); ?> (₱<?= number_format($p['price'], 2); ?>)
+                                            <option value="<?php echo $p['id']; ?>" data-price="<?php echo $p['price']; ?>">
+                                                <?php echo htmlspecialchars($p['name']); ?> (₱<?php echo number_format($p['price'], 2); ?>)
                                             </option>
                                         <?php endforeach; ?>
                                     </select>
@@ -527,28 +678,121 @@ $returns = safe_query_assoc("
                             </div>
                         </div>
                         <button type="button" class="btn btn-secondary" onclick="addProductItem()">+ Add Product</button>
-                        <!-- Totals and submit -->
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Discount (₱)</label>
+                                <input type="number" id="discountAmount" name="discountAmount" step="0.01" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Points Used (₱)</label>
+                                <input type="number" id="pointsUsed" name="pointsUsed" step="0.01" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Notes</label>
+                                <textarea name="saleNotes" rows="2"></textarea>
+                            </div>
+                        </div>
+
+                        <div class="totals">
+                            <p>Subtotal: <span id="saleSubtotal">₱0.00</span></p>
+                            <p>Tax (10%): <span id="saleTax">₱0.00</span></p>
+                            <p>Discount: <span id="saleDiscount">₱0.00</span></p>
+                            <h3>Total: <span id="saleTotal">₱0.00</span></h3>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="submit" class="btn btn-primary">Process Sale</button>
+                            <button type="button" class="btn btn-secondary" onclick="closeModal('newSaleModal')">Cancel</button>
+                        </div>
                     </form>
                 </div>
             </div>
 
-            <!-- Return Modal (similar) -->
-            <!-- ... -->
+            <!-- Process Return Modal -->
+            <div id="returnModal" class="modal">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h2>Process Return</h2>
+                        <span class="close" onclick="closeModal('returnModal')">×</span>
+                    </div>
+                    <form id="returnForm" method="post" onsubmit="prepareReturnSubmit(event)">
+                        <input type="hidden" name="action" value="process_return">
+                        <input type="hidden" id="return_items_json" name="return_items_json" value="[]">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Original Sale ID</label>
+                                <input type="number" name="returnSaleId" required placeholder="e.g., 1023">
+                            </div>
+                            <div class="form-group">
+                                <label>Return Date</label>
+                                <input type="date" name="returnDate" value="<?php echo date('Y-m-d'); ?>" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Reason</label>
+                                <input type="text" name="returnReason" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Refund Method</label>
+                                <select name="refundMethod">
+                                    <option value="Cash">Cash</option>
+                                    <option value="GCash">GCash</option>
+                                    <option value="Store Credit">Store Credit</option>
+                                </select>
+                            </div>
+                        </div>
 
+                        <h3>Returned Items</h3>
+                        <div id="returnItemsContainer">
+                            <div class="product-item">
+                                <div class="form-group">
+                                    <select class="return-product-select" required>
+                                        <option value="">Select Product</option>
+                                        <?php foreach ($products as $p): ?>
+                                            <option value="<?php echo $p['id']; ?>" data-price="<?php echo $p['price']; ?>">
+                                                <?php echo htmlspecialchars($p['name']); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <input type="number" class="return-quantity" placeholder="Qty" min="1" value="1" required>
+                                </div>
+                                <div class="form-group">
+                                    <input type="text" class="return-reason-detail" placeholder="Reason detail">
+                                </div>
+                                <div class="form-group">
+                                    <input type="number" class="return-amount" placeholder="Refund Amount" step="0.01" readonly>
+                                </div>
+                                <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.product-item').remove(); calculateReturnTotal();">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-secondary" onclick="addReturnItem()">+ Add Item</button>
+
+                        <div class="totals">
+                            <p>Total Refund: <span id="totalRefund">₱0.00</span></p>
+                            <p>Restocking Fee (5%): <span id="restockingFee">₱0.00</span></p>
+                            <h3>Net Refund: <span id="netRefund">₱0.00</span></h3>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Notes</label>
+                            <textarea name="returnNotes" rows="2"></textarea>
+                        </div>
+
+                        <div class="modal-actions">
+                            <button type="submit" class="btn btn-primary">Process Return</button>
+                            <button type="button" class="btn btn-secondary" onclick="closeModal('returnModal')">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </main>
     </div>
-    <script src="../js/app.js"></script>
-    <script>
 
-                document.querySelectorAll('.nav-link').forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                document.querySelectorAll('.tab-pane').forEach(pane => pane.style.display = 'none');
-                document.getElementById(this.dataset.tab).style.display = 'block';
-                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-                this.classList.add('active');
-            });
-        });
+    <script>
         // Tab navigation
         document.querySelectorAll('.nav-link').forEach(tab => {
             tab.addEventListener('click', e => {
@@ -561,7 +805,7 @@ $returns = safe_query_assoc("
             });
         });
 
-        // Modal functions
+        // Modal open/close
         function openNewSaleModal() { document.getElementById('newSaleModal').classList.add('active'); }
         function openReturnModal() { document.getElementById('returnModal').classList.add('active'); }
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
@@ -576,8 +820,8 @@ $returns = safe_query_assoc("
                     <select class="product-select" required>
                         <option value="">Select Product</option>
                         <?php foreach ($products as $p): ?>
-                            <option value="<?= $p['id']; ?>" data-price="<?= $p['price']; ?>">
-                                <?= htmlspecialchars($p['name']); ?> (₱<?= number_format($p['price'], 2); ?>)
+                            <option value="<?php echo $p['id']; ?>" data-price="<?php echo $p['price']; ?>">
+                                <?php echo htmlspecialchars($p['name']); ?> (₱<?php echo number_format($p['price'], 2); ?>)
                             </option>
                         <?php endforeach; ?>
                     </select>
@@ -599,39 +843,6 @@ $returns = safe_query_assoc("
             attachProductItemListeners(newItem);
         }
 
-        function addReturnItem() {
-            const container = document.getElementById('returnItemsContainer');
-            const newItem = document.createElement('div');
-            newItem.className = 'product-item';
-            newItem.innerHTML = `
-                <div class="form-group">
-                    <select class="return-product-select" required>
-                        <option value="">Select Product</option>
-                        <?php foreach ($products as $p): ?>
-                            <option value="<?= $p['id']; ?>" data-price="<?= $p['price']; ?>">
-                                <?= htmlspecialchars($p['name']); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <input type="number" class="return-quantity" placeholder="Qty" min="1" value="1" required>
-                </div>
-                <div class="form-group">
-                    <input type="text" class="return-reason-detail" placeholder="Reason detail">
-                </div>
-                <div class="form-group">
-                    <input type="number" class="return-amount" placeholder="Refund Amount" step="0.01" readonly>
-                </div>
-                <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.product-item').remove(); calculateReturnTotal();">
-                    <i class="fas fa-trash"></i>
-                </button>
-            `;
-            container.appendChild(newItem);
-            attachReturnItemListeners(newItem);
-        }
-
-        // Attach listeners (unchanged)
         function attachProductItemListeners(item) {
             const select = item.querySelector('.product-select');
             const quantityInput = item.querySelector('.quantity-input');
@@ -656,12 +867,150 @@ $returns = safe_query_assoc("
             priceInput?.addEventListener('input', updateSubtotal);
         }
 
-        // Initialize
         document.querySelectorAll('#productItemsContainer .product-item').forEach(attachProductItemListeners);
 
-        // calculateSaleTotal(), prepareSaleSubmit(), etc. (unchanged)
-        // ... (rest of your JS functions)
+        // Add return item
+        function addReturnItem() {
+            const container = document.getElementById('returnItemsContainer');
+            const newItem = document.createElement('div');
+            newItem.className = 'product-item';
+            newItem.innerHTML = `
+                <div class="form-group">
+                    <select class="return-product-select" required>
+                        <option value="">Select Product</option>
+                        <?php foreach ($products as $p): ?>
+                            <option value="<?php echo $p['id']; ?>" data-price="<?php echo $p['price']; ?>">
+                                <?php echo htmlspecialchars($p['name']); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <input type="number" class="return-quantity" placeholder="Qty" min="1" value="1" required>
+                </div>
+                <div class="form-group">
+                    <input type="text" class="return-reason-detail" placeholder="Reason detail">
+                </div>
+                <div class="form-group">
+                    <input type="number" class="return-amount" placeholder="Refund Amount" step="0.01" readonly>
+                </div>
+                <button type="button" class="btn btn-danger btn-sm" onclick="this.closest('.product-item').remove(); calculateReturnTotal();">
+                    <i class="fas fa-trash"></i>
+                </button>
+            `;
+            container.appendChild(newItem);
+            attachReturnItemListeners(newItem);
+        }
 
+        function attachReturnItemListeners(item) {
+            const select = item.querySelector('.return-product-select');
+            const quantityInput = item.querySelector('.return-quantity');
+            const amountInput = item.querySelector('.return-amount');
+
+            select?.addEventListener('change', updateReturnAmount);
+            quantityInput?.addEventListener('input', updateReturnAmount);
+
+            function updateReturnAmount() {
+                const qty = parseFloat(quantityInput.value) || 0;
+                const price = parseFloat(select.selectedOptions[0]?.dataset?.price || 0);
+                const amount = qty * price;
+                amountInput.value = amount.toFixed(2);
+                calculateReturnTotal();
+            }
+        }
+
+        document.querySelectorAll('#returnItemsContainer .product-item').forEach(attachReturnItemListeners);
+
+        // Calculate totals
+        function calculateSaleTotal() {
+            let subtotal = 0;
+            document.querySelectorAll('#productItemsContainer .product-item').forEach(item => {
+                const st = parseFloat(item.querySelector('.subtotal-input').value) || 0;
+                subtotal += st;
+            });
+            const discount = parseFloat(document.getElementById('discountAmount').value) || 0;
+            const points = parseFloat(document.getElementById('pointsUsed').value) || 0;
+            const taxable = Math.max(0, subtotal - discount - points);
+            const tax = taxable * 0.10;
+            const total = taxable + tax;
+
+            document.getElementById('saleSubtotal').textContent = '₱' + subtotal.toFixed(2);
+            document.getElementById('saleTax').textContent = '₱' + tax.toFixed(2);
+            document.getElementById('saleDiscount').textContent = '₱' + (discount + points).toFixed(2);
+            document.getElementById('saleTotal').textContent = '₱' + total.toFixed(2);
+        }
+
+        function calculateReturnTotal() {
+            let totalRefund = 0;
+            document.querySelectorAll('#returnItemsContainer .product-item').forEach(item => {
+                const amount = parseFloat(item.querySelector('.return-amount').value) || 0;
+                totalRefund += amount;
+            });
+            const restockingFee = totalRefund * 0.05;
+            const netRefund = totalRefund - restockingFee;
+
+            document.getElementById('totalRefund').textContent = '₱' + totalRefund.toFixed(2);
+            document.getElementById('restockingFee').textContent = '₱' + restockingFee.toFixed(2);
+            document.getElementById('netRefund').textContent = '₱' + netRefund.toFixed(2);
+        }
+
+        // Prepare submit
+        function prepareSaleSubmit(e) {
+            e.preventDefault();
+            const items = [];
+            document.querySelectorAll('#productItemsContainer .product-item').forEach(item => {
+                const select = item.querySelector('.product-select');
+                const qty = item.querySelector('.quantity-input').value;
+                const price = item.querySelector('.price-input').value;
+                if (select.value && qty > 0) {
+                    items.push({
+                        product_id: select.value,
+                        quantity: qty,
+                        price: price
+                    });
+                }
+            });
+            document.getElementById('sale_items_json').value = JSON.stringify(items);
+            e.target.submit();
+        }
+
+        function prepareReturnSubmit(e) {
+            e.preventDefault();
+            const items = [];
+            document.querySelectorAll('#returnItemsContainer .product-item').forEach(item => {
+                const select = item.querySelector('.return-product-select');
+                const qty = item.querySelector('.return-quantity').value;
+                const amount = item.querySelector('.return-amount').value;
+                const reason = item.querySelector('.return-reason-detail').value;
+                if (select.value && qty > 0) {
+                    items.push({
+                        product_id: select.value,
+                        quantity: qty,
+                        refund_amount: amount,
+                        reason_detail: reason
+                    });
+                }
+            });
+            document.getElementById('return_items_json').value = JSON.stringify(items);
+            e.target.submit();
+        }
+
+        // Placeholder actions
+        function filterOrders() { console.log('Filtering orders...'); }
+        function filterInvoices() { console.log('Filtering invoices...'); }
+        function exportOrders() { console.log('Exporting orders...'); }
+        function exportInvoices() { console.log('Exporting invoices...'); }
+        function viewOrder(id) { alert('View Sale #' + id); }
+        function viewInvoice(id) { alert('View Invoice #' + id); }
+        function viewReturn(id) { alert('View Return #' + id); }
+        function printInvoice(id) { alert('Print Invoice for Sale #' + id); }
+        function downloadInvoice(id) { alert('Download Invoice #' + id); }
+        function generateReport() {
+            const type = document.getElementById('reportType').value;
+            document.getElementById('reportOutput').innerHTML = `<p><em>Loading ${type} report...</em></p>`;
+        }
+
+        // Initialize
         calculateSaleTotal();
         calculateReturnTotal();
     </script>
