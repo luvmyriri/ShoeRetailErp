@@ -6,11 +6,6 @@ ini_set('display_errors', 1);
 session_start();
 require_once 'includes/core_functions.php';
 
-// REMOVED: Redirect if already logged in - this was causing the loop
-// if (isLoggedIn()) {
-//     header('Location: index.php');
-//     exit;
-// }
 // Prevent caching of login page
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Cache-Control: post-check=0, pre-check=0', false);
@@ -35,11 +30,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username']) && isset(
     } else {
         try {
             if (authenticateUser($username, $password)) {
-                // Debug: Check what was set in session
-                error_log("Login successful. Session data: " . print_r($_SESSION, true));
-                
-                // Redirect to dashboard
-                header('Location: /public/index.php');
                 header('Location: public/index.php');
                 exit;
             } else {
