@@ -15,6 +15,7 @@ class Database {
     private $database = 'shoeretailerp';
     private $username = 'root';  // Change to your MySQL username
     private $password = '0428';      // Change to your MySQL password
+    private $password = '';      // Change to your MySQL password
     private $charset = 'utf8mb4';
     private $options = [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
