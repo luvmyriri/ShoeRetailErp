@@ -1,0 +1,85 @@
+  body {
+      font-family: "Segoe UI", Arial, sans-serif;
+      background: #f6f6f6;
+      padding: 30px;
+      color: #222;
+    }
+    .form-container {
+      background: #fff;
+      max-width: 950px;
+      margin: auto;
+      padding: 25px 30px;
+      border-radius: 10px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.06);
+    }
+    h2 {
+      margin-top: 0;
+      margin-bottom: 15px;
+      text-align: center;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 5px;
+      color: #333;
+      font-weight: 600;
+    }
+    input[type="text"], input[type="number"], input[type="email"], input[type="date"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    input[readonly] {
+      background: #f0f0f2;
+    }
+    .footer {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 25px;
+    }
+    .btn {
+      padding: 10px 18px;
+      font-weight: 600;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+    }
+    .btn-cancel {
+      background: #fff;
+      color: #333;
+      border: 1px solid #ccc;
+      text-decoration: none;
+    }
+    .btn-cancel:hover {
+      background: #f2f2f2;
+    }
+    .btn-submit {
+      background: #007bff;
+      color: #fff;
+      border: none;
+    }
+    .btn-submit:hover {
+      background: #0069d9;
+    }
+    @media (max-width: 768px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .footer {
+        flex-direction: column;
+        gap: 10px;
+      }
+      .btn {
+        width: 100%;
+      }
+    }
