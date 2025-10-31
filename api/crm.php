@@ -1,4 +1,8 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -41,45 +45,54 @@ function tableExists($pdo, $tableName)
 function getDateRange($range)
 {
     $now = new DateTime();
+    $year = (int)$now->format('Y');
+    $month = (int)$now->format('n');
+
     switch ($range) {
         case 'last_month':
-            $start = (new DateTime('first day of last month'))->setTime(0, 0, 0);
-            $end = (new DateTime('last day of last month'))->setTime(23, 59, 59);
+            $start = new DateTime('first day of last month midnight');
+            $end = new DateTime('last day of last month 23:59:59');
             break;
+
+
         case 'this_quarter':
-            $quarter = ceil($now->format('n') / 3);
-            $start = new DateTime(($quarter * 3 - 2) . '/1/' . $now->format('Y'));
-            $end = (clone $start)->modify('+2 months')->modify('last day of')->setTime(23, 59, 59);
+            $quarter = ceil($month / 3);
+            $startMonth = ($quarter - 1) * 3 + 1;
+            $start = new DateTime("$year-$startMonth-01 00:00:00");
+            $end = (clone $start)->modify('+2 months')->modify('last day of this month')->setTime(23, 59, 59);
             break;
+
         case 'last_quarter':
-            $quarter = ceil($now->format('n') / 3) - 1;
+            $quarter = ceil($month / 3) - 1;
             if ($quarter < 1) {
                 $quarter = 4;
-                $year = $now->format('Y') - 1;
-            } else {
-                $year = $now->format('Y');
+                $year--;
             }
-            $start = new DateTime((($quarter * 3 - 2) . '/1/' . $year));
-            $end = (clone $start)->modify('+2 months')->modify('last day of')->setTime(23, 59, 59);
+            $startMonth = ($quarter - 1) * 3 + 1;
+            $start = new DateTime("$year-$startMonth-01 00:00:00");
+            $end = (clone $start)->modify('+2 months')->modify('last day of this month')->setTime(23, 59, 59);
             break;
+
         case 'this_year':
-            $start = new DateTime($now->format('Y') . '-01-01');
-            $end = (new DateTime($now->format('Y') . '-12-31'))->setTime(23, 59, 59);
+            $start = new DateTime("$year-01-01 00:00:00");
+            $end = new DateTime("$year-12-31 23:59:59");
             break;
+
         case 'custom':
             if (!empty($_GET['start']) && !empty($_GET['end'])) {
-                $start = new DateTime($_GET['start']);
-                $start->setTime(0, 0, 0);
-                $end = new DateTime($_GET['end']);
-                $end->setTime(23, 59, 59);
+                $start = (new DateTime($_GET['start']))->setTime(0, 0, 0);
+                $end = (new DateTime($_GET['end']))->setTime(23, 59, 59);
                 break;
             }
+            // fallback if custom params are missing
+
         case 'this_month':
         default:
-            $start = (new DateTime('first day of this month'))->setTime(0, 0, 0);
-            $end = (new DateTime('last day of this month'))->setTime(23, 59, 59);
+            $start = new DateTime(date('Y-m-01 00:00:00'));
+            $end = (clone $start)->modify('last day of this month')->setTime(23, 59, 59);
             break;
     }
+
     return [$start->format('Y-m-d H:i:s'), $end->format('Y-m-d H:i:s')];
 }
 
@@ -512,6 +525,84 @@ if (isset($_POST['action']) && $_POST['action'] === 'generate_report') {
     }
 }
 
+// Handle get lead data
+if (isset($_GET['action']) && $_GET['action'] === 'get_lead_details') {
+    header('Content-Type: application/json');
+    $response = ['success' => false];
+
+    try {
+        $leadId = $_GET['lead_id'] ?? 0;
+
+        // Since you're using customers table as leads
+        $stmt = $pdo->prepare("SELECT * FROM customers WHERE CustomerID = ?");
+        $stmt->execute([$leadId]);
+        $lead = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if ($lead) {
+            $response = $lead;
+        }
+    } catch (Exception $e) {
+        $response['error'] = $e->getMessage();
+    }
+
+    echo json_encode($response);
+    exit();
+}
+
+// Handle get deal data
+if (isset($_GET['action']) && $_GET['action'] === 'get_deal_details') {
+    header('Content-Type: application/json');
+    $response = ['success' => false];
+
+    try {
+        $dealId = $_GET['deal_id'] ?? 0;
+
+        // Add your deals table query here
+        // For now, returning dummy data
+        $response = [
+            'DealID' => $dealId,
+            'DealName' => 'Sample Deal',
+            'DealValue' => 10000,
+            'Stage' => 'Prospecting',
+            'Probability' => 50,
+            'CloseDate' => date('Y-m-d'),
+            'Notes' => ''
+        ];
+    } catch (Exception $e) {
+        $response['error'] = $e->getMessage();
+    }
+
+    echo json_encode($response);
+    exit();
+}
+
+// Handle get task data
+if (isset($_GET['action']) && $_GET['action'] === 'get_task_details') {
+    header('Content-Type: application/json');
+    $response = ['success' => false];
+
+    try {
+        $taskId = $_GET['task_id'] ?? 0;
+
+        // Add your tasks table query here
+        // For now, returning dummy data
+        $response = [
+            'TaskID' => $taskId,
+            'Title' => 'Sample Task',
+            'Description' => '',
+            'DueDate' => date('Y-m-d'),
+            'Priority' => 'Medium',
+            'Status' => 'Pending',
+            'AssignedTo' => ''
+        ];
+    } catch (Exception $e) {
+        $response['error'] = $e->getMessage();
+    }
+
+    echo json_encode($response);
+    exit();
+}
+
 // ========================================
 // CUSTOMER MANAGEMENT HANDLERS
 // ========================================
@@ -526,7 +617,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $result = $stmt->fetch(PDO::FETCH_ASSOC);
                     $nextNum = ($result['max_num'] ?? 0) + 1;
                     $memberNumber = 'MEM-' . str_pad($nextNum, 3, '0', STR_PAD_LEFT);
-                    
+
                     $stmt = $pdo->prepare("INSERT INTO customers (MemberNumber, FirstName, LastName, Email, Phone, Address, LoyaltyPoints, Status, CreatedAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())");
                     $stmt->execute([
                         $memberNumber,
@@ -588,10 +679,10 @@ if (isset($_GET['export'])) {
     try {
         header('Content-Type: text/csv');
         header('Content-Disposition: attachment; filename="customers_' . date('Y-m-d') . '.csv"');
-        
+
         $output = fopen('php://output', 'w');
         fputcsv($output, ['Customer ID', 'Member Number', 'Name', 'Email', 'Phone', 'Loyalty Points', 'Tier', 'Status', 'Total Purchases', 'Last Purchase']);
-        
+
         $stmt = $pdo->query("
             SELECT c.CustomerID, c.MemberNumber, c.FirstName, c.LastName, c.Email, c.Phone, c.LoyaltyPoints, c.Status,
                    COALESCE(SUM(s.TotalAmount), 0) as TotalPurchases,
@@ -601,17 +692,17 @@ if (isset($_GET['export'])) {
             GROUP BY c.CustomerID
             ORDER BY c.FirstName
         ");
-        
+
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
             $points = (int)$row['LoyaltyPoints'];
             $tier = 'Bronze';
             if ($points >= 1000) $tier = 'Platinum';
             elseif ($points >= 500) $tier = 'Gold';
             elseif ($points >= 100) $tier = 'Silver';
-            
+
             $name = trim($row['FirstName'] . ' ' . $row['LastName']);
             $lastPurchase = $row['LastPurchase'] ? date('M d, Y', strtotime($row['LastPurchase'])) : 'Never';
-            
+
             fputcsv($output, [
                 'CUST-' . $row['CustomerID'],
                 $row['MemberNumber'],
@@ -625,7 +716,7 @@ if (isset($_GET['export'])) {
                 $lastPurchase
             ]);
         }
-        
+
         fclose($output);
         exit;
     } catch (Exception $e) {
@@ -660,7 +751,7 @@ try {
     // Build filter conditions
     $whereConditions = [];
     $params = [];
-    
+
     if ($filters['type'] !== 'all') {
         if ($filters['type'] === 'VIP') {
             $whereConditions[] = "c.LoyaltyPoints >= 500";
@@ -668,12 +759,12 @@ try {
             $whereConditions[] = "c.LoyaltyPoints < 500";
         }
     }
-    
+
     if ($filters['status'] !== 'all') {
         $whereConditions[] = "c.Status = ?";
         $params[] = $filters['status'];
     }
-    
+
     if ($filters['date_range'] !== 'all') {
         $dateCondition = "";
         switch ($filters['date_range']) {
@@ -696,18 +787,26 @@ try {
             $whereConditions[] = $dateCondition;
         }
     }
-    
+
     if ($filters['tier'] !== 'all') {
         $tierCondition = "";
         switch ($filters['tier']) {
-            case 'Bronze': $tierCondition = "c.LoyaltyPoints < 100"; break;
-            case 'Silver': $tierCondition = "c.LoyaltyPoints BETWEEN 100 AND 499"; break;
-            case 'Gold': $tierCondition = "c.LoyaltyPoints BETWEEN 500 AND 999"; break;
-            case 'Platinum': $tierCondition = "c.LoyaltyPoints >= 1000"; break;
+            case 'Bronze':
+                $tierCondition = "c.LoyaltyPoints < 100";
+                break;
+            case 'Silver':
+                $tierCondition = "c.LoyaltyPoints BETWEEN 100 AND 499";
+                break;
+            case 'Gold':
+                $tierCondition = "c.LoyaltyPoints BETWEEN 500 AND 999";
+                break;
+            case 'Platinum':
+                $tierCondition = "c.LoyaltyPoints >= 1000";
+                break;
         }
         if ($tierCondition) $whereConditions[] = $tierCondition;
     }
-    
+
     $whereClause = $whereConditions ? "WHERE " . implode(" AND ", $whereConditions) : "";
 
     // total customers with filters
@@ -737,7 +836,7 @@ try {
             $whereClause 
             ORDER BY FirstName 
             LIMIT ? OFFSET ?";
-    
+
     $stmt = $pdo->prepare($sql);
     $allParams = array_merge($params, [(int)$perPage, (int)$offset]);
     $stmt->execute($allParams);
@@ -750,8 +849,8 @@ try {
         $name = trim((($r['FirstName'] ?? '') . ' ' . ($r['LastName'] ?? '')));
         if ($name === '') $name = 'Customer';
         $initials = '';
-        foreach (preg_split('/\s+/', $name) as $p) { 
-            $initials .= strtoupper(substr($p,0,1)); 
+        foreach (preg_split('/\s+/', $name) as $p) {
+            $initials .= strtoupper(substr($p, 0, 1));
         }
 
         $points = (int)$r['LoyaltyPoints'];
@@ -781,22 +880,21 @@ try {
             'type' => ($points >= $vipThreshold ? 'VIP' : 'Retail'),
             'points' => $points,
             'tier' => $tier,
-            'total_purchases' => '₱' . number_format($totalPurchases,2),
+            'total_purchases' => '₱' . number_format($totalPurchases, 2),
             'last_purchase' => $lastPurchase,
             'status' => $r['Status']
         ];
     }
-
 } catch (Exception $e) {
     $_SESSION['error_message'] = "Database error: " . $e->getMessage();
 }
 
 // prepare stats array for UI
 $stats_dynamic = [
-    ['icon'=>'👥','value'=>number_format($totalCustomers),'label'=>'Total Customers','sublabel'=>'Active accounts','trend'=>'+0.0%','trend_dir'=>'up','color'=>'#dbeafe'],
-    ['icon'=>'⭐','value'=>number_format($vipCustomers),'label'=>'VIP Customers','sublabel'=>'Loyalty tier 3+','trend'=>'+0.0%','trend_dir'=>'up','color'=>'#fef3c7'],
-    ['icon'=>'🎁','value'=>number_format($totalLoyaltyPoints),'label'=>'Total Loyalty Points','sublabel'=>'Redeemable','trend'=>'+0.0%','trend_dir'=>'up','color'=>'#e9d5ff'],
-    ['icon'=>'🆕','value'=>number_format($newThisMonth),'label'=>'New This Month','sublabel'=>'vs last month','trend'=>'+0.0%','trend_dir'=>'up','color'=>'#d1fae5']
+    ['icon' => '👥', 'value' => number_format($totalCustomers), 'label' => 'Total Customers', 'sublabel' => 'Active accounts', 'trend' => '+0.0%', 'trend_dir' => 'up', 'color' => '#dbeafe'],
+    ['icon' => '⭐', 'value' => number_format($vipCustomers), 'label' => 'VIP Customers', 'sublabel' => 'Loyalty tier 3+', 'trend' => '+0.0%', 'trend_dir' => 'up', 'color' => '#fef3c7'],
+    ['icon' => '🎁', 'value' => number_format($totalLoyaltyPoints), 'label' => 'Total Loyalty Points', 'sublabel' => 'Redeemable', 'trend' => '+0.0%', 'trend_dir' => 'up', 'color' => '#e9d5ff'],
+    ['icon' => '🆕', 'value' => number_format($newThisMonth), 'label' => 'New This Month', 'sublabel' => 'vs last month', 'trend' => '+0.0%', 'trend_dir' => 'up', 'color' => '#d1fae5']
 ];
 
 // ========================================
@@ -804,7 +902,8 @@ $stats_dynamic = [
 // ========================================
 
 // Helper function to get initials from name
-function getInitials($name) {
+function getInitials($name)
+{
     $parts = array_filter(explode(' ', $name));
     $initials = '';
     foreach ($parts as $part) {
@@ -813,10 +912,18 @@ function getInitials($name) {
     return $initials ?: '?';
 }
 
+function calculateTotalPages($totalRecords, $perPage)
+{
+    if ($perPage <= 0) return 0;
+    return ceil($totalRecords / $perPage);
+}
+
+
 // Function to get ticket statistics
-function getTicketStats($pdo, $ticketTable) {
+function getTicketStats($pdo, $ticketTable)
+{
     $stats = [];
-    
+
     $stmt = $pdo->query("SELECT COUNT(*) FROM `{$ticketTable}`");
     $stats['totalTickets'] = (int)$stmt->fetchColumn();
 
@@ -840,68 +947,69 @@ function getTicketStats($pdo, $ticketTable) {
         $avgScore = (float)$stmt->fetchColumn();
         $stats['satisfactionRate'] = round(($avgScore / 5) * 100, 1);
     }
-    
+
     return $stats;
 }
 
 // Function to get filtered tickets
-function getFilteredTickets($pdo, $ticketTable, $filters) {
+function getFilteredTickets($pdo, $ticketTable, $filters)
+{
     $whereConditions = [];
     $params = [];
-    
+
     if (!empty($filters['status']) && $filters['status'] !== 'All Status') {
         $statusMap = [
-            'Open' => ['Open','open'],
-            'In Progress' => ['In Progress','in progress','Progress'],
+            'Open' => ['Open', 'open'],
+            'In Progress' => ['In Progress', 'in progress', 'Progress'],
             'Resolved' => ['Resolved'],
-            'Closed' => ['Closed','closed']
+            'Closed' => ['Closed', 'closed']
         ];
-        
+
         if (isset($statusMap[$filters['status']])) {
             $placeholders = implode(',', array_fill(0, count($statusMap[$filters['status']]), '?'));
             $whereConditions[] = "t.Status IN ($placeholders)";
             $params = array_merge($params, $statusMap[$filters['status']]);
         }
     }
-    
+
     if (!empty($filters['priority']) && $filters['priority'] !== 'All Priority') {
         $whereConditions[] = "t.Priority = ?";
         $params[] = $filters['priority'];
     }
-    
+
     if (!empty($filters['category']) && $filters['category'] !== 'All Categories') {
         $whereConditions[] = "t.Category = ?";
         $params[] = $filters['category'];
     }
-    
+
     if (!empty($filters['date_range']) && $filters['date_range'] !== 'All Time') {
         $dateConditions = [
             'Today' => "DATE(t.CreatedAt) = CURDATE()",
             'This Week' => "YEARWEEK(t.CreatedAt) = YEARWEEK(CURDATE())",
             'This Month' => "MONTH(t.CreatedAt) = MONTH(CURDATE()) AND YEAR(t.CreatedAt) = YEAR(CURDATE())"
         ];
-        
+
         if (isset($dateConditions[$filters['date_range']])) {
             $whereConditions[] = $dateConditions[$filters['date_range']];
         }
     }
-    
+
     if (!empty($filters['search'])) {
         $searchTerm = '%' . $filters['search'] . '%';
         $whereConditions[] = "(t.Subject LIKE ? OR t.Description LIKE ? OR c.FirstName LIKE ? OR c.LastName LIKE ? OR t.Tags LIKE ?)";
         $params = array_merge($params, [$searchTerm, $searchTerm, $searchTerm, $searchTerm, $searchTerm]);
     }
-    
+
     $whereClause = '';
     if (!empty($whereConditions)) {
         $whereClause = 'WHERE ' . implode(' AND ', $whereConditions);
     }
-    
+
     $countSql = "SELECT COUNT(*) FROM `{$ticketTable}` t LEFT JOIN customers c ON t.CustomerID = c.CustomerID $whereClause";
     $stmt = $pdo->prepare($countSql);
     $stmt->execute($params);
     $totalCount = (int)$stmt->fetchColumn();
-    
+
     $ticketsSql = "
         SELECT t.TicketID AS id, t.CustomerID, t.Subject AS subject, t.Description AS description, 
                t.Category AS category, t.Priority AS priority, t.Status AS status, 
@@ -916,11 +1024,11 @@ function getFilteredTickets($pdo, $ticketTable, $filters) {
         ORDER BY t.CreatedAt DESC 
         LIMIT 50
     ";
-    
+
     $stmt = $pdo->prepare($ticketsSql);
     $stmt->execute($params);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
+
     $tickets = [];
     foreach ($rows as $r) {
         $custName = trim(($r['FirstName'] ?? '') . ' ' . ($r['LastName'] ?? '')) ?: 'Customer';
@@ -944,7 +1052,7 @@ function getFilteredTickets($pdo, $ticketTable, $filters) {
             'tags' => $r['Tags'] ?? ''
         ];
     }
-    
+
     return ['tickets' => $tickets, 'total_count' => $totalCount];
 }
 
@@ -956,19 +1064,19 @@ function getFilteredTickets($pdo, $ticketTable, $filters) {
 if (isset($_GET['action']) && $_GET['action'] === 'get_ticket_details') {
     header('Content-Type: application/json');
     $response = ['success' => false, 'message' => ''];
-    
+
     try {
         $ticket_id = str_replace('#TKT-', '', $_GET['ticket_id'] ?? '');
-        
-        $possibleTicketTables = ['support_tickets','tickets','customer_support','helpdesk_tickets'];
+
+        $possibleTicketTables = ['support_tickets', 'tickets', 'customer_support', 'helpdesk_tickets'];
         $ticketTable = null;
         foreach ($possibleTicketTables as $tbl) {
-            if (tableExists($pdo, $tbl)) { 
-                $ticketTable = $tbl; 
-                break; 
+            if (tableExists($pdo, $tbl)) {
+                $ticketTable = $tbl;
+                break;
             }
         }
-        
+
         if ($ticketTable) {
             $stmt = $pdo->prepare("
                 SELECT 
@@ -984,7 +1092,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_ticket_details') {
             ");
             $stmt->execute([$ticket_id]);
             $ticket = $stmt->fetch(PDO::FETCH_ASSOC);
-            
+
             if ($ticket) {
                 $response['success'] = true;
                 $response['ticket'] = [
@@ -1019,7 +1127,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_ticket_details') {
     } catch (Exception $e) {
         $response['message'] = 'Error fetching ticket details: ' . $e->getMessage();
     }
-    
+
     echo json_encode($response);
     exit();
 }
@@ -1028,17 +1136,17 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_ticket_details') {
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'create_ticket') {
     header('Content-Type: application/json');
     $response = ['success' => false, 'message' => ''];
-    
+
     try {
-        $possibleTicketTables = ['support_tickets','tickets','customer_support','helpdesk_tickets'];
+        $possibleTicketTables = ['support_tickets', 'tickets', 'customer_support', 'helpdesk_tickets'];
         $ticketTable = null;
         foreach ($possibleTicketTables as $tbl) {
-            if (tableExists($pdo, $tbl)) { 
-                $ticketTable = $tbl; 
-                break; 
+            if (tableExists($pdo, $tbl)) {
+                $ticketTable = $tbl;
+                break;
             }
         }
-        
+
         if (!$ticketTable) {
             $ticketTable = 'support_tickets';
             $createTableSQL = "
@@ -1067,7 +1175,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
             ";
             $pdo->exec($createTableSQL);
         }
-        
+
         $customer_id = $_POST['customer_id'] ?? '';
         $category = $_POST['category'] ?? '';
         $priority = $_POST['priority'] ?? '';
@@ -1080,13 +1188,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
         $contact_method = $_POST['contact_method'] ?? 'Email';
         $due_date = $_POST['due_date'] ?? null;
         $tags = trim($_POST['tags'] ?? '');
-        
+
         if (empty($customer_id) || empty($category) || empty($priority) || empty($subject) || empty($description) || empty($assigned_to)) {
             $response['message'] = 'All required fields must be filled';
             echo json_encode($response);
             exit();
         }
-        
+
         $categoryMap = [
             'Product Issue' => 'Product Issue',
             'Order Issue' => 'Order Issue',
@@ -1099,18 +1207,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
             'Inquiry' => 'Inquiry',
             'Feature Request' => 'Feature Request'
         ];
-        
+
         $category = $categoryMap[$category] ?? $category;
-        
+
         $priorityMap = [
             'Critical' => 'Critical',
             'High' => 'High',
             'Medium' => 'Medium',
             'Low' => 'Low'
         ];
-        
+
         $priority = $priorityMap[$priority] ?? $priority;
-        
+
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM customers WHERE CustomerID = ?");
         $stmt->execute([$customer_id]);
         if ($stmt->fetchColumn() == 0) {
@@ -1118,7 +1226,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
             echo json_encode($response);
             exit();
         }
-        
+
         $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE UserID = ?");
         $stmt->execute([$assigned_to]);
         if ($stmt->fetchColumn() == 0) {
@@ -1126,28 +1234,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
             echo json_encode($response);
             exit();
         }
-        
+
         if (!empty($sale_ref) && !str_contains($sale_ref, '#')) {
             $sale_ref = '#SALE-' . $sale_ref;
         }
-        
+
         if (!empty($due_date)) {
             $due_date = date('Y-m-d', strtotime($due_date));
         } else {
             $due_date = null;
         }
-        
+
         $stmt = $pdo->prepare("
             INSERT INTO `{$ticketTable}` 
             (CustomerID, Category, Priority, Subject, Description, SaleRef, AssignedTo, Status, InternalNotes, StoreID, ContactMethod, DueDate, Tags)
             VALUES (?, ?, ?, ?, ?, ?, ?, 'Open', ?, ?, ?, ?, ?)
         ");
-        
+
         $success = $stmt->execute([
-            $customer_id, $category, $priority, $subject, $description, $sale_ref, $assigned_to, 
-            $notes, $store_id, $contact_method, $due_date, $tags
+            $customer_id,
+            $category,
+            $priority,
+            $subject,
+            $description,
+            $sale_ref,
+            $assigned_to,
+            $notes,
+            $store_id,
+            $contact_method,
+            $due_date,
+            $tags
         ]);
-        
+
         if ($success) {
             $ticketId = $pdo->lastInsertId();
             $response['success'] = true;
@@ -1159,7 +1277,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
     } catch (Exception $e) {
         $response['message'] = 'Error creating ticket: ' . $e->getMessage();
     }
-    
+
     echo json_encode($response);
     exit();
 }
@@ -1167,20 +1285,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'creat
 // Handle ticket updates AJAX request
 if (isset($_GET['action']) && $_GET['action'] === 'get_ticket_updates') {
     header('Content-Type: application/json');
-    
+
     $lastUpdateTime = $_GET['last_update'] ?? '1970-01-01 00:00:00';
     $response = ['updated' => false, 'tickets' => [], 'stats' => []];
-    
+
     try {
-        $possibleTicketTables = ['support_tickets','tickets','customer_support','helpdesk_tickets'];
+        $possibleTicketTables = ['support_tickets', 'tickets', 'customer_support', 'helpdesk_tickets'];
         $ticketTable = null;
         foreach ($possibleTicketTables as $tbl) {
-            if (tableExists($pdo, $tbl)) { 
-                $ticketTable = $tbl; 
-                break; 
+            if (tableExists($pdo, $tbl)) {
+                $ticketTable = $tbl;
+                break;
             }
         }
-        
+
         if ($ticketTable) {
             $stmt = $pdo->prepare("
                 SELECT t.TicketID AS id, t.CustomerID, t.Subject AS subject, t.Description AS description, 
@@ -1198,7 +1316,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_ticket_updates') {
             ");
             $stmt->execute([$lastUpdateTime, $lastUpdateTime]);
             $updatedTickets = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
             if (count($updatedTickets) > 0) {
                 $response['updated'] = true;
                 foreach ($updatedTickets as $r) {
@@ -1223,7 +1341,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_ticket_updates') {
                         'tags' => $r['Tags'] ?? ''
                     ];
                 }
-                
+
                 $stats = getTicketStats($pdo, $ticketTable);
                 $response['stats'] = $stats;
             }
@@ -1231,7 +1349,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_ticket_updates') {
     } catch (Exception $e) {
         $response['error'] = $e->getMessage();
     }
-    
+
     echo json_encode($response);
     exit();
 }
@@ -1239,7 +1357,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'get_ticket_updates') {
 // Handle filter tickets request
 if (isset($_GET['action']) && $_GET['action'] === 'filter_tickets') {
     header('Content-Type: application/json');
-    
+
     $filters = [
         'status' => $_GET['status'] ?? '',
         'priority' => $_GET['priority'] ?? '',
@@ -1247,19 +1365,19 @@ if (isset($_GET['action']) && $_GET['action'] === 'filter_tickets') {
         'date_range' => $_GET['date_range'] ?? '',
         'search' => $_GET['search'] ?? ''
     ];
-    
+
     $response = ['tickets' => [], 'total_count' => 0];
-    
+
     try {
-        $possibleTicketTables = ['support_tickets','tickets','customer_support','helpdesk_tickets'];
+        $possibleTicketTables = ['support_tickets', 'tickets', 'customer_support', 'helpdesk_tickets'];
         $ticketTable = null;
         foreach ($possibleTicketTables as $tbl) {
-            if (tableExists($pdo, $tbl)) { 
-                $ticketTable = $tbl; 
-                break; 
+            if (tableExists($pdo, $tbl)) {
+                $ticketTable = $tbl;
+                break;
             }
         }
-        
+
         if ($ticketTable) {
             $filteredTickets = getFilteredTickets($pdo, $ticketTable, $filters);
             $response['tickets'] = $filteredTickets['tickets'];
@@ -1268,7 +1386,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'filter_tickets') {
     } catch (Exception $e) {
         $response['error'] = $e->getMessage();
     }
-    
+
     echo json_encode($response);
     exit();
 }
@@ -1277,51 +1395,51 @@ if (isset($_GET['action']) && $_GET['action'] === 'filter_tickets') {
 if ($_POST['action'] ?? '' === 'update_ticket_status') {
     header('Content-Type: application/json');
     $response = ['success' => false, 'message' => ''];
-    
+
     try {
         $ticket_id = str_replace('#TKT-', '', $_POST['ticket_id'] ?? '');
         $status = $_POST['status'] ?? '';
         $feedback_score = $_POST['feedback_score'] ?? null;
-        
-        $possibleTicketTables = ['support_tickets','tickets','customer_support','helpdesk_tickets'];
+
+        $possibleTicketTables = ['support_tickets', 'tickets', 'customer_support', 'helpdesk_tickets'];
         $ticketTable = null;
         foreach ($possibleTicketTables as $tbl) {
-            if (tableExists($pdo, $tbl)) { 
-                $ticketTable = $tbl; 
-                break; 
+            if (tableExists($pdo, $tbl)) {
+                $ticketTable = $tbl;
+                break;
             }
         }
-        
+
         if ($ticketTable) {
             $stmt = $pdo->prepare("SELECT Status, FirstResponseAt FROM `{$ticketTable}` WHERE TicketID = ?");
             $stmt->execute([$ticket_id]);
             $ticket = $stmt->fetch(PDO::FETCH_ASSOC);
-            
+
             $updates = ['Status = ?', 'UpdatedAt = NOW()'];
             $params = [$status];
-            
+
             if ($ticket && $ticket['Status'] === 'Open' && $status !== 'Open' && !$ticket['FirstResponseAt']) {
                 $updates[] = 'FirstResponseAt = NOW()';
             }
-            
+
             if ($feedback_score !== null && $feedback_score !== '') {
                 $updates[] = 'FeedbackScore = ?';
                 $params[] = $feedback_score;
             }
-            
+
             $params[] = $ticket_id;
-            
+
             $sql = "UPDATE `{$ticketTable}` SET " . implode(', ', $updates) . " WHERE TicketID = ?";
             $stmt = $pdo->prepare($sql);
             $stmt->execute($params);
-            
+
             $response['success'] = true;
             $response['message'] = 'Ticket updated successfully!';
         }
     } catch (Exception $e) {
         $response['message'] = 'Error updating ticket: ' . $e->getMessage();
     }
-    
+
     echo json_encode($response);
     exit();
 }
@@ -1330,20 +1448,20 @@ if ($_POST['action'] ?? '' === 'update_ticket_status') {
 if ($_GET['action'] ?? '' === 'export_tickets') {
     header('Content-Type: text/csv');
     header('Content-Disposition: attachment; filename="support_tickets_' . date('Y-m-d') . '.csv"');
-    
+
     $output = fopen('php://output', 'w');
     fputcsv($output, ['Ticket ID', 'Customer', 'Subject', 'Category', 'Priority', 'Status', 'Assigned To', 'Created Date', 'Last Updated', 'Contact Method', 'Due Date']);
-    
+
     try {
-        $possibleTicketTables = ['support_tickets','tickets','customer_support','helpdesk_tickets'];
+        $possibleTicketTables = ['support_tickets', 'tickets', 'customer_support', 'helpdesk_tickets'];
         $ticketTable = null;
         foreach ($possibleTicketTables as $tbl) {
-            if (tableExists($pdo, $tbl)) { 
-                $ticketTable = $tbl; 
-                break; 
+            if (tableExists($pdo, $tbl)) {
+                $ticketTable = $tbl;
+                break;
             }
         }
-        
+
         if ($ticketTable) {
             $stmt = $pdo->prepare("
                 SELECT t.TicketID, t.Subject, t.Category, t.Priority, t.Status, t.CreatedAt, t.UpdatedAt,
@@ -1356,11 +1474,11 @@ if ($_GET['action'] ?? '' === 'export_tickets') {
             ");
             $stmt->execute();
             $tickets = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
+
             foreach ($tickets as $ticket) {
                 $customerName = trim(($ticket['FirstName'] ?? '') . ' ' . ($ticket['LastName'] ?? ''));
                 $agentName = trim(($ticket['agent_first'] ?? '') . ' ' . ($ticket['agent_last'] ?? '')) ?: 'Unassigned';
-                
+
                 fputcsv($output, [
                     '#TKT-' . $ticket['TicketID'],
                     $customerName ?: 'Customer',
@@ -1379,8 +1497,7 @@ if ($_GET['action'] ?? '' === 'export_tickets') {
     } catch (Exception $e) {
         // Handle error
     }
-    
+
     fclose($output);
     exit();
 }
-?>
