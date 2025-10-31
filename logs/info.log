@@ -6,3 +6,87 @@
 [2025-10-22 03:28:12] User logged in successfully Context: {"username":"admin","role":"Admin"}
 [2025-10-22 03:41:15] User logged out Context: {"username":"admin"}
 [2025-10-22 03:41:21] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 08:56:59] User logged out Context: {"username":"admin"}
+[2025-10-27 08:57:07] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 08:57:59] User logged out Context: {"username":"admin"}
+[2025-10-27 08:58:06] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 08:58:34] User logged out Context: {"username":"admin"}
+[2025-10-27 08:58:41] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 08:59:08] User logged out Context: {"username":"admin"}
+[2025-10-27 08:59:16] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 08:59:41] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 09:00:06] User logged out Context: {"username":"admin"}
+[2025-10-27 09:02:02] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 09:03:38] User logged out Context: {"username":"admin"}
+[2025-10-27 09:03:50] User logged in successfully Context: {"username":"manager1","role":"Manager"}
+[2025-10-27 16:55:01] User logged out Context: {"username":"manager1"}
+[2025-10-27 16:55:07] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 17:07:42] User logged out Context: {"username":"admin"}
+[2025-10-27 17:07:47] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 17:08:44] User logged out Context: {"username":"admin"}
+[2025-10-27 17:08:49] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 17:10:32] User logged out Context: {"username":"admin"}
+[2025-10-27 17:10:41] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 17:13:06] User logged out Context: {"username":"admin"}
+[2025-10-27 17:13:14] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 17:14:35] User logged out Context: {"username":"admin"}
+[2025-10-27 17:14:39] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 17:15:37] User logged out Context: {"username":"admin"}
+[2025-10-27 17:15:43] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 17:20:20] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 17:22:17] User logged out Context: {"username":"admin"}
+[2025-10-27 17:22:24] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 17:24:54] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 17:33:42] User logged out Context: {"username":"admin"}
+[2025-10-27 17:34:43] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 17:46:14] User logged out Context: {"username":"admin"}
+[2025-10-27 17:46:18] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 17:48:12] User logged out Context: {"username":"admin"}
+[2025-10-27 17:48:23] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 19:29:40] User logged out Context: {"username":"admin"}
+[2025-10-27 19:32:49] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 19:40:10] User logged out Context: {"username":"admin"}
+[2025-10-27 19:48:35] Self-registered user Context: {"new_user":"inventory","role":"Inventory","store_id":1,"ip":"::1"}
+[2025-10-27 19:48:45] User logged in successfully Context: {"username":"inventory","role":"Inventory"}
+[2025-10-27 19:48:54] User logged out Context: {"username":"inventory"}
+[2025-10-27 19:49:04] User logged in successfully Context: {"username":"inventory","role":"Inventory"}
+[2025-10-27 19:49:14] User logged out Context: {"username":"inventory"}
+[2025-10-27 19:49:59] User logged in successfully Context: {"username":"inventory","role":"Inventory"}
+[2025-10-27 19:51:47] User logged out Context: {"username":"inventory"}
+[2025-10-27 19:52:02] User logged in successfully Context: {"username":"inventory","role":"Inventory"}
+[2025-10-27 19:52:58] User logged in successfully Context: {"username":"inventory","role":"Inventory"}
+[2025-10-27 19:54:49] Self-registered user Context: {"new_user":"inventory2","role":"Inventory","store_id":null,"ip":"::1"}
+[2025-10-27 19:54:55] User logged out Context: {"username":"inventory"}
+[2025-10-27 19:55:03] User logged in successfully Context: {"username":"inventory2","role":"Inventory"}
+[2025-10-27 19:59:38] User logged out Context: {"username":"inventory2"}
+[2025-10-27 19:59:46] User logged in successfully Context: {"username":"cashier1","role":"Cashier"}
+[2025-10-27 19:59:52] User logged out Context: {"username":"cashier1"}
+[2025-10-27 19:59:59] User logged in successfully Context: {"username":"inventory","role":"Inventory"}
+[2025-10-27 20:01:04] User logged out Context: {"username":"inventory"}
+[2025-10-27 20:01:11] User logged in successfully Context: {"username":"inventory2","role":"Inventory"}
+[2025-10-27 20:04:52] User logged out Context: {"username":"inventory2"}
+[2025-10-27 20:04:58] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-27 20:06:13] User logged out Context: {"username":"admin"}
+[2025-10-27 20:06:19] User logged in successfully Context: {"username":"inventory","role":"Inventory"}
+[2025-10-27 20:06:35] User logged out Context: {"username":"inventory"}
+[2025-10-27 20:08:11] Self-registered user Context: {"new_user":"humores","role":"HR","store_id":null,"ip":"::1"}
+[2025-10-27 20:08:20] User logged in successfully Context: {"username":"humores","role":"HR"}
+[2025-10-27 20:08:51] User logged out Context: {"username":"humores"}
+[2025-10-27 20:41:36] User logged in successfully Context: {"username":"inventory","role":"Inventory"}
+[2025-10-27 20:41:46] User logged out Context: {"username":"inventory"}
+[2025-10-27 20:49:01] User logged in successfully Context: {"username":"admin","role":"Admin"}
+[2025-10-28 03:46:01] User logged in successfully Context: {"username":"inventory","role":"Inventory"}
+[2025-10-28 03:48:22] User logged out Context: {"username":"inventory"}
+[2025-10-28 12:16:14] User logged in successfully Context: {"username":"inventory","role":"Inventory"}
+[2025-10-28 12:16:32] User logged out Context: {"username":"inventory"}
+[2025-10-28 12:18:18] User logged in successfully Context: {"username":"humores","role":"HR"}
+[2025-10-28 15:10:25] User logged in successfully Context: {"username":"humores","role":"HR"}
+[2025-10-28 17:37:57] User logged in successfully Context: {"username":"humores","role":"HR"}
+[2025-10-28 20:14:11] User logged in successfully Context: {"username":"humores","role":"HR"}
+[2025-10-29 03:18:15] User logged in successfully Context: {"username":"humores","role":"HR"}
+[2025-10-29 16:16:35] User logged out Context: {"username":"humores"}
+[2025-10-30 06:21:45] User logged in successfully Context: {"username":"humores","role":"HR"}
+[2025-10-30 14:14:46] User logged in successfully Context: {"username":"humores","role":"HR"}
+[2025-10-30 21:06:53] User logged out Context: {"username":"humores"}
+[2025-10-30 21:07:47] User logged in successfully Context: {"username":"humores","role":"HR"}
+[2025-10-31 04:17:25] User logged in successfully Context: {"username":"humores","role":"HR"}

@@ -134,9 +134,9 @@ const ERP = {
 
     loadDashboard() {
         this.showLoader();
-        this.fetchAPI('/api/dashboard.php?action=get_stats')
+        this.fetchAPI(this.baseURL + '/dashboard.php?action=get_stats')
             .then(data => {
-                this.updateDashboardStats(data);
+                this.updateDashboardStats(data.data);
                 this.loadRecentSales();
                 this.hideLoader();
             })
@@ -144,14 +144,20 @@ const ERP = {
     },
 
     updateDashboardStats(stats) {
-        document.querySelector('[data-stat="total-revenue"]').textContent = 
-            this.formatCurrency(stats.total_revenue || 0);
-        document.querySelector('[data-stat="total-customers"]').textContent = 
-            stats.total_customers || 0;
-        document.querySelector('[data-stat="items-in-stock"]').textContent = 
-            stats.items_in_stock || 0;
-        document.querySelector('[data-stat="order-fulfillment"]').textContent = 
-            stats.order_fulfillment + '%' || '0%';
+        // Safe update with null checks
+        const updateStat = (selector, value) => {
+            const el = document.querySelector(selector);
+            if (el) el.textContent = value;
+        };
+        
+        // Try both data attributes and fallback selectors
+        updateStat('[data-stat="total-revenue"]', this.formatCurrency(stats.total_revenue || 0));
+        updateStat('[data-stat="total-customers"]', stats.total_customers || 0);
+        updateStat('[data-stat="items-in-stock"]', stats.items_in_stock || 0);
+        updateStat('[data-stat="order-fulfillment"]', (stats.order_fulfillment || 0) + '%');
+        
+        // Log successful stats load for debugging
+        console.log('Dashboard stats updated:', stats);
     },
 
     loadRecentSales() {
@@ -171,10 +177,93 @@ const ERP = {
         this.showLoader();
         
         const container = document.getElementById('main-content');
-        container.innerHTML = this.getInventoryTemplate();
+        if (!container) {
+            const main = document.querySelector('main.main-content') || document.querySelector('main');
+            if (main) {
+                main.innerHTML = this.getInventoryTemplate();
+            }
+        } else {
+            container.innerHTML = this.getInventoryTemplate();
+        }
         
         this.setupInventoryFilters();
+        this.setupInventoryModals();
         this.loadInventoryData();
+    },
+
+    setupInventoryModals() {
+        console.log('Setting up inventory modals...');
+        
+        // Add modal backdrop if not present
+        if (!document.querySelector('.modal-backdrop')) {
+            const backdrop = document.createElement('div');
+            backdrop.className = 'modal-backdrop';
+            document.body.appendChild(backdrop);
+            console.log('Backdrop created');
+        }
+        
+        // Create and append modals to body if not already there
+        const createModal = (id, template) => {
+            let modal = document.getElementById(id);
+            if (!modal) {
+                const div = document.createElement('div');
+                div.innerHTML = template;
+                modal = div.firstElementChild;
+                document.body.appendChild(modal);
+                console.log(`Modal '${id}' created and appended`);
+            } else {
+                console.log(`Modal '${id}' already exists`);
+            }
+            return modal;
+        };
+        
+        createModal('addProductModal', this.getAddProductModalTemplate());
+        createModal('editProductModal', this.getEditProductModalTemplate());
+        
+        // Setup event delegation for modal close buttons (use arrow fn to preserve this)
+        const self = this;
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal-close')) {
+                const modal = e.target.closest('.modal');
+                if (modal) {
+                    self.closeModal(modal);
+                    console.log('Modal closed via close button');
+                }
+            }
+            if (e.target.classList.contains('modal-cancel')) {
+                const modal = e.target.closest('.modal');
+                if (modal) {
+                    self.closeModal(modal);
+                    console.log('Modal closed via cancel button');
+                }
+            }
+            if (e.target.classList.contains('modal-backdrop')) {
+                document.querySelectorAll('.modal.show').forEach(modal => self.closeModal(modal));
+                console.log('Modals closed via backdrop click');
+            }
+        }, true);
+        
+        // Ensure modals are properly styled
+        this.ensureModalStyles();
+        
+        console.log('Inventory modals setup complete');
+    },
+    
+    ensureModalStyles() {
+        const style = document.createElement('style');
+        if (!document.querySelector('style[data-inventory-modal]')) {
+            style.setAttribute('data-inventory-modal', 'true');
+            style.textContent = `
+                .modal { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; background: white; border-radius: 8px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); width: 90%; max-width: 500px; max-height: 90vh; overflow-y: auto; display: none; }
+                .modal.show { display: block !important; }
+                .modal-backdrop { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999; display: none; }
+                .modal-backdrop.show { display: block !important; }
+                .modal-header { padding: 1rem; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+                .modal-body { padding: 1rem; }
+                .modal-footer { padding: 1rem; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 0.5rem; }
+            `;
+            document.head.appendChild(style);
+        }
     },
 
     getInventoryTemplate() {
@@ -235,9 +324,6 @@ const ERP = {
                     <div class="pagination" id="inventory-pagination"></div>
                 </div>
             </div>
-
-            ${this.getAddProductModalTemplate()}
-            ${this.getEditProductModalTemplate()}
         `;
     },
 
@@ -246,7 +332,7 @@ const ERP = {
             <div id="addProductModal" class="modal">
                 <div class="modal-header">
                     <h3>Add New Product</h3>
-                    <button class="modal-close" onclick="ERP.closeModal(document.getElementById('addProductModal'))">&times;</button>
+                    <button class="modal-close" type="button">&times;</button>
                 </div>
                 <form class="erp-form" data-action="inventory" data-method="add_product">
                     <div class="modal-body">
@@ -303,7 +389,7 @@ const ERP = {
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-outline" onclick="ERP.closeModal(document.getElementById('addProductModal'))">Cancel</button>
+                        <button type="button" class="btn btn-outline modal-cancel">Cancel</button>
                         <button type="submit" class="btn btn-primary">Add Product</button>
                     </div>
                 </form>
@@ -316,7 +402,7 @@ const ERP = {
             <div id="editProductModal" class="modal">
                 <div class="modal-header">
                     <h3>Edit Product</h3>
-                    <button class="modal-close" onclick="ERP.closeModal(document.getElementById('editProductModal'))">&times;</button>
+                    <button class="modal-close" type="button">&times;</button>
                 </div>
                 <form class="erp-form" data-action="inventory" data-method="update_product">
                     <div class="modal-body">
@@ -351,7 +437,7 @@ const ERP = {
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-outline" onclick="ERP.closeModal(document.getElementById('editProductModal'))">Cancel</button>
+                        <button type="button" class="btn btn-outline modal-cancel">Cancel</button>
                         <button type="submit" class="btn btn-primary">Update Product</button>
                     </div>
                 </form>
@@ -442,16 +528,29 @@ const ERP = {
         this.fetchAPI(this.baseURL + '/inventory.php?action=get_product&product_id=' + productId)
             .then(data => {
                 const product = data.data.product;
+                if (!product) {
+                    this.showError('Product not found');
+                    return;
+                }
                 const modal = document.getElementById('editProductModal');
-                modal.querySelector('[name="product_id"]').value = product.ProductID;
-                modal.querySelector('[name="brand"]').value = product.Brand;
-                modal.querySelector('[name="model"]').value = product.Model;
-                modal.querySelector('[name="size"]').value = product.Size;
-                modal.querySelector('[name="color"]').value = product.Color;
-                modal.querySelector('[name="cost_price"]').value = product.CostPrice;
-                modal.querySelector('[name="selling_price"]').value = product.SellingPrice;
-                this.openModal(modal);
-            });
+                if (!modal) {
+                    this.showError('Modal not found');
+                    return;
+                }
+                const setField = (name, value) => {
+                    const field = modal.querySelector(`[name="${name}"]`);
+                    if (field) field.value = value;
+                };
+                setField('product_id', product.ProductID);
+                setField('brand', product.Brand);
+                setField('model', product.Model);
+                setField('size', product.Size);
+                setField('color', product.Color);
+                setField('cost_price', product.CostPrice);
+                setField('selling_price', product.SellingPrice);
+                this.openModal('editProductModal');
+            })
+            .catch(err => this.showError('Failed to load product: ' + err.message));
     },
 
     addStock(productId) {
@@ -686,6 +785,7 @@ const ERP = {
         this.fetchAPI(url, 'POST', data)
             .then(response => {
                 this.showSuccess(response.message);
+                form.reset();
                 this.closeAllModals();
                 
                 if (action === 'inventory') {
@@ -719,24 +819,79 @@ const ERP = {
     },
 
     openModal(modalId) {
-        const modal = typeof modalId === 'string' ? 
+        console.log('openModal called with:', modalId);
+        
+        let modal = typeof modalId === 'string' ? 
             document.getElementById(modalId) : modalId;
+        
+        console.log('Modal element found:', !!modal);
+        
+        // If modal doesn't exist and is a string ID, retry a few times
+        if (!modal && typeof modalId === 'string') {
+            console.log('Modal not found, retrying...');
+            let retries = 0;
+            const retryOpen = () => {
+                modal = document.getElementById(modalId);
+                console.log(`Retry ${retries}: Modal found:`, !!modal);
+                if (modal) {
+                    this.openModal(modal);
+                } else if (retries < 3) {
+                    retries++;
+                    setTimeout(retryOpen, 100);
+                } else {
+                    console.error(`Modal with ID '${modalId}' not found after retries`);
+                    alert(`Modal '${modalId}' not found. Check console for details.`);
+                    this.showError(`Modal '${modalId}' not found`);
+                }
+            };
+            retryOpen();
+            return;
+        }
+        
         if (modal) {
+            console.log('Opening modal:', modalId);
             modal.classList.add('show');
-            document.querySelector('.modal-backdrop')?.classList.add('show');
+            modal.style.display = 'block';
+            modal.style.zIndex = '1000';
+            
+            let backdrop = document.querySelector('.modal-backdrop');
+            if (!backdrop) {
+                backdrop = document.createElement('div');
+                backdrop.className = 'modal-backdrop';
+                backdrop.style.zIndex = '999';
+                document.body.appendChild(backdrop);
+            }
+            backdrop.classList.add('show');
+            backdrop.style.display = 'block';
+            console.log('Modal opened successfully:', modalId);
+        } else {
+            console.error('Modal is null/undefined:', modalId);
+            alert('Error: Modal element is null or undefined');
         }
     },
 
     closeModal(modal) {
         if (modal) {
             modal.classList.remove('show');
+            modal.style.display = 'none';
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop && !document.querySelector('.modal.show')) {
+                backdrop.classList.remove('show');
+                backdrop.style.display = 'none';
+            }
         }
     },
 
     closeAllModals() {
         document.querySelectorAll('.modal.show').forEach(modal => {
             modal.classList.remove('show');
+            modal.style.display = 'none';
         });
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) {
+            backdrop.classList.remove('show');
+            backdrop.style.display = 'none';
+        }
     },
 
     populateTable(tableId, data) {
