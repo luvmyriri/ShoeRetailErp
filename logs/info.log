@@ -90,3 +90,4 @@
 [2025-10-30 21:06:53] User logged out Context: {"username":"humores"}
 [2025-10-30 21:07:47] User logged in successfully Context: {"username":"humores","role":"HR"}
 [2025-10-31 04:17:25] User logged in successfully Context: {"username":"humores","role":"HR"}
+[2025-10-31 18:09:05] User logged out Context: {"username":"admin"}
