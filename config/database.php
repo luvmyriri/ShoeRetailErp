@@ -24,7 +24,7 @@ class Database {
     ];
     
     /**
-     * Private constructor to prevent multiple instances
+     * Private constructor to prevent multiple instances    
      */
     private function __construct() {
         $this->connect();
