@@ -15,6 +15,74 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
+// Create loyalty tables if they don't exist
+try {
+    // Create loyalty_tiers table
+    $pdo->exec("CREATE TABLE IF NOT EXISTS loyalty_tiers (
+        tier_id INT PRIMARY KEY AUTO_INCREMENT,
+        tier_name VARCHAR(50) NOT NULL,
+        min_points INT NOT NULL,
+        max_points INT NOT NULL,
+        multiplier DECIMAL(3,2) NOT NULL,
+        icon VARCHAR(10),
+        color VARCHAR(20),
+        benefits TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    )");
+
+    // Create loyalty_transactions table
+    $pdo->exec("CREATE TABLE IF NOT EXISTS loyalty_transactions (
+        transaction_id INT PRIMARY KEY AUTO_INCREMENT,
+        customer_id INT NOT NULL,
+        `change` INT NOT NULL,
+        previous_balance INT NOT NULL,
+        new_balance INT NOT NULL,
+        type VARCHAR(50) NOT NULL,
+        sale_amount DECIMAL(10,2),
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (customer_id) REFERENCES customers(CustomerID)
+    )");
+
+    // Create loyalty_accounts table
+    $pdo->exec("CREATE TABLE IF NOT EXISTS loyalty_accounts (
+        account_id INT PRIMARY KEY AUTO_INCREMENT,
+        customer_id INT UNIQUE NOT NULL,
+        points_balance INT DEFAULT 0,
+        tier_id INT,
+        last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (customer_id) REFERENCES customers(CustomerID),
+        FOREIGN KEY (tier_id) REFERENCES loyalty_tiers(tier_id)
+    )");
+
+    // Insert default tiers if loyalty_tiers is empty
+    $stmt = $pdo->query("SELECT COUNT(*) FROM loyalty_tiers");
+    if ($stmt->fetchColumn() == 0) {
+        $defaultTiers = [
+            ['Bronze', 0, 99, 1.0, '🥉', '#fed7aa', "Basic point earning\nStandard benefits"],
+            ['Silver', 100, 499, 1.2, '🥈', '#e5e7eb', "Enhanced point earning\nPriority support"],
+            ['Gold', 500, 999, 1.5, '🥇', '#fde68a', "Premium point earning\nVIP benefits\nSpecial events"],
+            ['Platinum', 1000, 999999, 2.0, '💎', '#c7d2fe', "Maximum point earning\nExclusive benefits\nFree shipping"]
+        ];
+        
+        $stmt = $pdo->prepare("INSERT INTO loyalty_tiers (tier_name, min_points, max_points, multiplier, icon, color, benefits) VALUES (?, ?, ?, ?, ?, ?, ?)");
+        foreach ($defaultTiers as $tier) {
+            $stmt->execute($tier);
+        }
+    }
+
+    // Create loyalty accounts for existing customers if they don't have one
+    $pdo->exec("INSERT IGNORE INTO loyalty_accounts (customer_id, points_balance)
+                SELECT CustomerID, COALESCE(LoyaltyPoints, 0)
+                FROM customers
+                WHERE Status = 'Active'");
+
+} catch (PDOException $e) {
+    die('Error creating loyalty tables: ' . $e->getMessage());
+}
+
 // Points rate (fallback) - 1 point per ₱10
 $pointsRate = 10;
 $pointsRateDisplay = '₱' . $pointsRate . '/pt';
@@ -150,11 +218,47 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $tiers = $_POST['tiers'] ?? [];
 
         try {
-            // In a real implementation, you would save these to a database table
-            // For now, we'll just store in session for demonstration
-            $_SESSION['tier_settings'] = $tiers;
+            $pdo->beginTransaction();
+            
+            // First, set all loyalty_accounts.tier_id to NULL to remove foreign key constraints
+            $pdo->exec("UPDATE loyalty_accounts SET tier_id = NULL");
+            
+            // Now we can safely delete existing tiers
+            $pdo->exec("DELETE FROM loyalty_tiers");
+            
+            // Insert new tier settings (include benefits)
+            $stmt = $pdo->prepare("
+                INSERT INTO loyalty_tiers (tier_name, min_points, max_points, multiplier, icon, color, benefits) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ");
+            
+            foreach ($tiers as $tier) {
+                // benefits are submitted as textarea (string with newlines)
+                $benefitsText = isset($tier['benefits']) ? trim($tier['benefits']) : null;
+                $stmt->execute([
+                    $tier['name'],
+                    (int)$tier['min_points'],
+                    (int)$tier['max_points'],
+                    (float)$tier['multiplier'],
+                    $tier['icon'],
+                    $tier['color'],
+                    $benefitsText
+                ]);
+            }
+            
+            // Update customer tiers based on their points
+            $pdo->exec("
+                UPDATE loyalty_accounts la
+                JOIN customers c ON la.customer_id = c.CustomerID
+                JOIN loyalty_tiers lt ON c.LoyaltyPoints BETWEEN lt.min_points AND lt.max_points
+                SET la.tier_id = lt.tier_id
+                WHERE c.Status = 'Active'
+            ");
+            
+            $pdo->commit();
             $_SESSION['success_message'] = "Tier settings saved successfully!";
         } catch (Exception $e) {
+            $pdo->rollBack();
             $_SESSION['error_message'] = "Error saving tier settings: " . $e->getMessage();
         }
 
@@ -195,12 +299,88 @@ $programSettings = $_SESSION['program_settings'] ?? [
     'birthday_bonus' => 200
 ];
 
-// Load tier settings from session or use defaults
-$tierSettings = $_SESSION['tier_settings'] ?? [
-    'Bronze' => ['min_points' => 0, 'max_points' => 99, 'multiplier' => 1.0, 'icon' => '🥉', 'color' => '#fed7aa'],
-    'Silver' => ['min_points' => 100, 'max_points' => 499, 'multiplier' => 1.2, 'icon' => '🥈', 'color' => '#e5e7eb'],
-    'Gold' => ['min_points' => 500, 'max_points' => 999, 'multiplier' => 1.5, 'icon' => '🥇', 'color' => '#fde68a'],
-    'Platinum' => ['min_points' => 1000, 'max_points' => 999999, 'multiplier' => 2.0, 'icon' => '💎', 'color' => '#c7d2fe']
+// Load tier settings from database
+$tierSettings = [];
+$stmt = $pdo->query("SELECT * FROM loyalty_tiers ORDER BY min_points ASC");
+while ($tier = $stmt->fetch(PDO::FETCH_ASSOC)) {
+    $benefits = [];
+    if (!empty($tier['benefits'])) {
+        // split stored benefits by newlines and trim each line
+        $lines = preg_split('/\r?\n/', $tier['benefits']);
+        foreach ($lines as $ln) {
+            $t = trim($ln);
+            if ($t !== '') $benefits[] = $t;
+        }
+    }
+
+    $tierSettings[$tier['tier_name']] = [
+        'min_points' => (int)$tier['min_points'],
+        'max_points' => (int)$tier['max_points'],
+        'multiplier' => (float)$tier['multiplier'],
+        'icon' => $tier['icon'],
+        'color' => $tier['color'],
+        'benefits' => $benefits
+    ];
+}
+
+// Define tier benefits
+$tierBenefits = [
+    'Bronze' => [
+        'Earn 1 point per ₱10 spent',
+        'Points valid for 12 months',
+        'Birthday bonus points'
+    ],
+    'Silver' => [
+        'Earn 1.2 points per ₱10 spent',
+        'Points valid for 15 months',
+        'Birthday bonus points',
+        'Priority customer support'
+    ],
+    'Gold' => [
+        'Earn 1.5 points per ₱10 spent',
+        'Points valid for 18 months',
+        'Enhanced birthday bonus points',
+        'Priority customer support',
+        'Exclusive Gold member events'
+    ],
+    'Platinum' => [
+        'Earn 2 points per ₱10 spent',
+        'Points never expire',
+        'Double birthday bonus points',
+        'VIP customer support',
+        'Exclusive Platinum events',
+        'Free shipping on all orders'
+    ]
+];
+
+// Define tier benefits
+$tierBenefits = [
+    'Bronze' => [
+        'Earn 1 point per ₱10 spent',
+        'Points valid for 12 months',
+        'Birthday bonus points'
+    ],
+    'Silver' => [
+        'Earn 1.2 points per ₱10 spent',
+        'Points valid for 15 months',
+        'Birthday bonus points',
+        'Priority customer support'
+    ],
+    'Gold' => [
+        'Earn 1.5 points per ₱10 spent',
+        'Points valid for 18 months',
+        'Enhanced birthday bonus points',
+        'Priority customer support',
+        'Exclusive Gold member events'
+    ],
+    'Platinum' => [
+        'Earn 2 points per ₱10 spent',
+        'Points never expire',
+        'Double birthday bonus points',
+        'VIP customer support',
+        'Exclusive Platinum events',
+        'Free shipping on all orders'
+    ]
 ];
 
 $totalPointsIssued = 0;
@@ -617,7 +797,27 @@ foreach ($tierSettings as $tierName => $settings) {
                     foreach ($tierSettings as $tierName => $settings) {
                         $members = $tierCounts[$tierName] ?? 0;
                         $range = $settings['min_points'] . ' - ' . ($settings['max_points'] == 999999 ? $settings['max_points'] . '+' : $settings['max_points']) . ' points';
-                        $benefits = $tierBenefits[$tierName] ?? ['Custom benefits'];
+                        // Use stored benefits (array), fallback to sensible defaults if missing
+                        $benefits = $settings['benefits'] ?? null;
+                        if (is_string($benefits)) {
+                            // if somehow stored as a string, split by newlines
+                            $lines = preg_split('/\r?\n/', $benefits);
+                            $tmp = [];
+                            foreach ($lines as $ln) {
+                                $t = trim($ln);
+                                if ($t !== '') $tmp[] = $t;
+                            }
+                            $benefits = $tmp;
+                        }
+                        if (empty($benefits) || !is_array($benefits)) {
+                            $defaultBenefits = [
+                                'Bronze' => ['Basic point earning', 'Standard benefits'],
+                                'Silver' => ['Enhanced point earning', 'Priority support'],
+                                'Gold' => ['Premium point earning', 'VIP benefits', 'Special events'],
+                                'Platinum' => ['Maximum point earning', 'Exclusive benefits', 'VIP events', 'Free shipping']
+                            ];
+                            $benefits = $defaultBenefits[$tierName] ?? ['Custom benefits'];
+                        }
 
                         echo '<div class="tier-card" style="border-top: 4px solid ' . $settings['color'] . ';">';
                         echo '<div class="tier-card-header">';
@@ -628,8 +828,12 @@ foreach ($tierSettings as $tierName => $settings) {
                         echo '</div>';
                         echo '</div>';
                         echo '<div class="tier-benefits">';
+                        // Ensure benefits is always an array
+                        if (!is_array($benefits)) {
+                            $benefits = [$benefits];
+                        }
                         foreach ($benefits as $benefit) {
-                            echo '<div class="tier-benefit">✓ ' . $benefit . '</div>';
+                            echo '<div class="tier-benefit">✓ ' . htmlspecialchars($benefit) . '</div>';
                         }
                         echo '</div>';
                         echo '<div class="tier-members">' . number_format($members) . ' members</div>';
@@ -955,8 +1159,11 @@ foreach ($tierSettings as $tierName => $settings) {
                             echo '</div>';
                             echo '<div class="form-group full-width">';
                             echo '<label>Benefits (one per line)</label>';
-                            echo '<textarea class="form-textarea" name="tiers[' . $tierCounter . '][benefits]" placeholder="Enter benefits, one per line">' .
-                                (isset($tierBenefits[$tierName]) ? implode("\n", $tierBenefits[$tierName]) : '') . '</textarea>';
+                            $benefitsText = '';
+                            if (!empty($settings['benefits']) && is_array($settings['benefits'])) {
+                                $benefitsText = implode("\n", $settings['benefits']);
+                            }
+                            echo '<textarea class="form-textarea" name="tiers[' . $tierCounter . '][benefits]" placeholder="Enter benefits, one per line">' . htmlspecialchars($benefitsText) . '</textarea>';
                             echo '</div>';
                             echo '</div>';
                             echo '</div>';
