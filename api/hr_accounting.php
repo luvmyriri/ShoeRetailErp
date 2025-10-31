@@ -250,11 +250,15 @@ try {
         case 'get_accounts_receivable':
             $storeId = $_GET['store_id'] ?? $_SESSION['store_id'] ?? null;
             
-            $query = "SELECT ar.*, c.FirstName, c.LastName FROM AccountsReceivable ar JOIN Customers c ON ar.CustomerID = c.CustomerID WHERE 1=1";
+            $query = "SELECT ar.*, c.FirstName, c.LastName, s.StoreID 
+                      FROM AccountsReceivable ar 
+                      JOIN Customers c ON ar.CustomerID = c.CustomerID 
+                      JOIN Sales s ON ar.SaleID = s.SaleID 
+                      WHERE 1=1";
             $params = [];
             
             if ($storeId) {
-                $query .= " AND ar.StoreID = ?";
+                $query .= " AND s.StoreID = ?";
                 $params[] = $storeId;
             }
             
@@ -292,11 +296,15 @@ try {
         case 'get_accounts_payable':
             $storeId = $_GET['store_id'] ?? $_SESSION['store_id'] ?? null;
             
-            $query = "SELECT ap.*, s.SupplierName FROM AccountsPayable ap JOIN Suppliers s ON ap.SupplierID = s.SupplierID WHERE 1=1";
+            $query = "SELECT ap.*, sup.SupplierName 
+                      FROM AccountsPayable ap 
+                      JOIN Suppliers sup ON ap.SupplierID = sup.SupplierID 
+                      JOIN PurchaseOrders po ON ap.PurchaseOrderID = po.PurchaseOrderID 
+                      WHERE 1=1";
             $params = [];
             
             if ($storeId) {
-                $query .= " AND ap.StoreID = ?";
+                $query .= " AND po.StoreID = ?";
                 $params[] = $storeId;
             }
             

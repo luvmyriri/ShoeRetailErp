@@ -22,12 +22,16 @@ try {
             $storeId = $_GET['store_id'] ?? $_SESSION['store_id'];
             $status = $_GET['status'] ?? null;
             
-            $query = "SELECT ar.*, s.CustomerName, s.SaleDate FROM v_outstanding_receivables ar 
-                     WHERE ar.StoreID = ?";
+            $query = "
+                SELECT ar.*, s.StoreID
+                FROM v_outstanding_receivables ar
+                JOIN Sales s ON ar.SaleID = s.SaleID
+                WHERE s.StoreID = ?
+            ";
             $params = [$storeId];
             
             if ($status) {
-                $query .= " AND ar.PaymentStatus = ?";
+                $query .= " AND ar.Status = ?";
                 $params[] = $status;
             }
             

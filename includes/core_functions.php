@@ -137,14 +137,14 @@ function getLowStockItems($storeId = null) {
 /**
  * Process a complete sale using stored procedure
  */
-function processSale($customerId, $storeId, $products, $paymentMethod = 'Cash', $discountAmount = 0) {
+function processSale($customerId, $storeId, $products, $paymentMethod = 'Cash', $discountAmount = 0, $pointsUsed = 0) {
     try {
         // Prepare products JSON
         $productsJson = json_encode($products);
         
-        // Call stored procedure
-        $query = "CALL ProcessSale(?, ?, ?, ?, ?, @sale_id)";
-        dbExecute($query, [$customerId, $storeId, $productsJson, $paymentMethod, $discountAmount]);
+        // Call stored procedure (updated signature includes points used)
+        $query = "CALL ProcessSale(?, ?, ?, ?, ?, ?, @sale_id)";
+        dbExecute($query, [$customerId, $storeId, $productsJson, $paymentMethod, $discountAmount, $pointsUsed]);
         
         // Get the sale ID
         $result = dbFetchOne("SELECT @sale_id as sale_id");

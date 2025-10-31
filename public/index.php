@@ -6,10 +6,6 @@ ini_set('display_errors', 1);
 
 session_start();
 
-// Debug: Log session data
-error_log("Index.php - Session ID: " . session_id());
-error_log("Index.php - Session data: " . print_r($_SESSION, true));
-
 // Check if user is logged in
 // Prevent caching of authenticated pages
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
@@ -17,13 +13,9 @@ header('Cache-Control: post-check=0, pre-check=0', false);
 header('Pragma: no-cache');
 
 if (!isset($_SESSION['user_id'])) {
-    // Debug output before redirect
-    error_log("Index.php - User not logged in, redirecting to login");
     header('Location: /ShoeRetailErp/login.php');
     exit;
 }
-
-error_log("Index.php - User is logged in: " . $_SESSION['username']);
 ?>
 <!DOCTYPE html>
 <html lang="en">

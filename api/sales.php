@@ -46,14 +46,14 @@ try {
             }
             
             $data = json_decode(file_get_contents('php://input'), true);
-            $saleId = processSale($data['customer_id'], $_SESSION['store_id'], $data['products'], 
-                                 $data['payment_method'], $data['discount'] ?? 0);
-            
-            // Add loyalty points if customer made payment
-            if ($data['payment_method'] !== 'Credit' && $data['customer_id']) {
-                $points = floor($data['total'] / 10); // 1 point per $10
-                updateLoyaltyPoints($data['customer_id'], $points);
-            }
+            $saleId = processSale(
+                $data['customer_id'],
+                $_SESSION['store_id'],
+                $data['products'],
+                $data['payment_method'],
+                $data['discount'] ?? 0,
+                $data['points_used'] ?? 0
+            );
             
             jsonResponse(['success' => true, 'message' => 'Sale created', 'sale_id' => $saleId]);
             break;
