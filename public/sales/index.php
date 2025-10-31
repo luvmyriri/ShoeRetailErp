@@ -147,20 +147,60 @@ function safe_query_assoc($sql, $params = []) {
 
 // --- Stats ---
 $today = date('Y-m-d');
-$stats = ['today_sales' => 0, 'orders_today' => 0, 'unique_customers_today' => 0, 'avg_rating' => 0];
+$yesterday = date('Y-m-d', strtotime('-1 day'));
+
+$stats = [
+    'today_sales' => 0,
+    'yesterday_sales' => 0,
+    'orders_today' => 0,
+    'orders_yesterday' => 0,
+    'unique_customers_today' => 0,
+    'unique_customers_yesterday' => 0,
+    'avg_rating' => 0,
+    'sales_change_percent' => 0,
+    'orders_change_percent' => 0,
+    'customers_change_percent' => 0
+];
 
 try {
+    // --- Today's Sales ---
     $row = dbFetchOne("SELECT IFNULL(SUM(total_amount),0) AS total FROM sales WHERE DATE(created_at) = ?", [$today]);
     $stats['today_sales'] = $row['total'] ?? 0;
 
+    // --- Yesterday's Sales ---
+    $row = dbFetchOne("SELECT IFNULL(SUM(total_amount),0) AS total FROM sales WHERE DATE(created_at) = ?", [$yesterday]);
+    $stats['yesterday_sales'] = $row['total'] ?? 0;
+
+    // --- Orders Today & Yesterday ---
     $row = dbFetchOne("SELECT COUNT(*) AS cnt FROM sales WHERE DATE(created_at) = ?", [$today]);
     $stats['orders_today'] = $row['cnt'] ?? 0;
 
+    $row = dbFetchOne("SELECT COUNT(*) AS cnt FROM sales WHERE DATE(created_at) = ?", [$yesterday]);
+    $stats['orders_yesterday'] = $row['cnt'] ?? 0;
+
+    // --- Unique Customers Today & Yesterday ---
     $row = dbFetchOne("SELECT COUNT(DISTINCT customer_id) AS cnt FROM sales WHERE DATE(created_at) = ?", [$today]);
     $stats['unique_customers_today'] = $row['cnt'] ?? 0;
 
+    $row = dbFetchOne("SELECT COUNT(DISTINCT customer_id) AS cnt FROM sales WHERE DATE(created_at) = ?", [$yesterday]);
+    $stats['unique_customers_yesterday'] = $row['cnt'] ?? 0;
+
+    // --- Avg Rating ---
     $row = dbFetchOne("SELECT AVG(rating) AS avg_rating FROM product_reviews");
     $stats['avg_rating'] = $row['avg_rating'] ? round((float)$row['avg_rating'], 2) : 0;
+
+    // --- Calculate Percentage Changes ---
+    if ($stats['yesterday_sales'] > 0) {
+        $stats['sales_change_percent'] = (($stats['today_sales'] - $stats['yesterday_sales']) / $stats['yesterday_sales']) * 100;
+    }
+
+    if ($stats['orders_yesterday'] > 0) {
+        $stats['orders_change_percent'] = (($stats['orders_today'] - $stats['orders_yesterday']) / $stats['orders_yesterday']) * 100;
+    }
+
+    if ($stats['unique_customers_yesterday'] > 0) {
+        $stats['customers_change_percent'] = (($stats['unique_customers_today'] - $stats['unique_customers_yesterday']) / $stats['unique_customers_yesterday']) * 100;
+    }
 } catch (Exception $e) {
     logError("Stats failed", ['error' => $e->getMessage()]);
 }
@@ -285,6 +325,12 @@ $returns = safe_query_assoc("
                         <div class="stat-icon">Money</div>
                         <div class="stat-value">₱<?php echo number_format($stats['today_sales'], 2); ?></div>
                         <div class="stat-label">Today's Sales</div>
+                        <?php if ($stats['sales_change_percent'] != 0): ?>
+                            <div class="stat-trend" style="color: <?php echo ($stats['sales_change_percent'] >= 0) ? 'green' : 'red'; ?>;">
+                                <?php echo ($stats['sales_change_percent'] >= 0 ? '▲' : '▼'); ?>
+                                <?php echo number_format(abs($stats['sales_change_percent']), 2); ?>%vs yesterday
+                            </div>
+                        <?php endif; ?>
                     </div>
                 </div>
                 <div class="col-md-3" style="margin-bottom: 0.75rem;">
