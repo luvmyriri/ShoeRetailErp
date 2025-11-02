@@ -242,14 +242,6 @@ $nav_map = [
     'customers' => $current_dir === 'customers',
     'hr' => $current_dir === 'hr',
 ];
-// Role-based access control
-$userRole = $_SESSION['role'] ?? '';
-$allowedRoles = ['Admin', 'Manager', 'Sales', 'Cashier'];
-
-if (!in_array($userRole, $allowedRoles)) {
-    header('Location: /ShoeRetailErp/public/index.php?error=access_denied');
-    exit;
-}
 ?>
 
 <!DOCTYPE html>
