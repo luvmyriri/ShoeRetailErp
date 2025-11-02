@@ -1,0 +1,25 @@
+     /* Custom print media queries to hide buttons when printing */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .report-container {
+                box-shadow: none !important;
+                border: none !important;
+                margin-top: 0 !important;
+                padding: 0 !important;
+            }
+        }
+        /* Custom table styling for better separation and PHP friendly placeholders */
+        .report-table th, .report-table td {
+            padding: 12px;
+            font-size: 0.875rem; /* sm text size */
+        }
+        .php-placeholder {
+            color: #1e40af; /* blue-800 */
+            font-weight: 600;
+        }
+        .total-row td {
+            font-weight: bold;
+            background-color: #f3f4f6; /* gray-100 */
+        }
