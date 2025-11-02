@@ -3,8 +3,6 @@
 
 session_start();
 
-
-// Check if user is logged in
 // Prevent caching of authenticated pages
 header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Cache-Control: post-check=0, pre-check=0', false);
@@ -248,6 +246,7 @@ if (!isset($_SESSION['user_id'])) {
             </div>
         </main>
     </div>
+    <script src="js/app.js"></script>
     <script src="js/app.js"></script>
     <script src="js/erp-app.js"></script>
     <script>

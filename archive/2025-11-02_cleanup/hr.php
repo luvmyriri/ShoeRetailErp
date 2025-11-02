@@ -172,7 +172,7 @@ try {
                     <div class="card-header">
                         <ul class="nav nav-tabs card-header-tabs" role="tablist">
                             <li class="nav-item">
-                                <a class="nav-link active" data-bs-toggle="tab" href="#employees" role="tab">
+                                <a class="nav-link active" data-bs-toggle="tab" href=employees"#" role="tab">
                                     <i class="bi bi-people"></i> Employees
                                 </a>
                             </li>

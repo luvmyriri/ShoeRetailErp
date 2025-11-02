@@ -143,24 +143,15 @@ try {
             break;
         
         case 'get_stock_view':
-            // UPDATED: Get all products for all active stores, showing 0 if no inventory record exists
-            $query = "SELECT 
-                        p.ProductID, p.SKU, p.Brand, p.Model, p.Size, p.Color, 
-                        p.CostPrice, p.SellingPrice, p.MinStockLevel, p.MaxStockLevel, 
-                        p.Status, 
-                        COALESCE(i.Quantity, 0) AS Quantity, 
-                        i.LastUpdated, 
-                        s.StoreName, s.StoreID
-                    FROM 
-                        products p
-                    CROSS JOIN 
-                        stores s
-                    LEFT JOIN 
-                        inventory i ON p.ProductID = i.ProductID AND s.StoreID = i.StoreID
-                    WHERE 
-                        p.Status = 'Active' AND s.Status = 'Active'
-                    ORDER BY 
-                        s.StoreName, p.Brand, p.Model";
+            // Get all products with their stock levels across all stores
+            $query = "SELECT p.ProductID, p.SKU, p.Brand, p.Model, p.Size, p.Color, 
+                             p.CostPrice, p.SellingPrice, p.MinStockLevel, p.MaxStockLevel, 
+                             p.Status, i.Quantity, i.LastUpdated, s.StoreName, s.StoreID
+                     FROM products p 
+                     JOIN inventory i ON p.ProductID = i.ProductID
+                     JOIN stores s ON i.StoreID = s.StoreID
+                     WHERE p.Status = 'Active' AND s.Status = 'Active'
+                     ORDER BY s.StoreName, p.Brand, p.Model";
             
             $stockView = dbFetchAll($query);
             jsonResponse(['success' => true, 'data' => $stockView]);
@@ -308,124 +299,9 @@ try {
                 
                 jsonResponse([
                     'success' => true, 
-                    'message' => 'Restock request sent to Procurement successfully!',
+                    'message' => 'Restock request created successfully',
                     'po_id' => $poId
                 ]);
-            } catch (Exception $e) {
-                getDB()->rollBack();
-                throw $e;
-            }
-            break;
-
-        // Handle bulk restock requests, including new products
-        case 'bulk_request_restock':
-            if ($method !== 'POST') {
-                throw new Exception('Method not allowed');
-            }
-            
-            $data = json_decode(file_get_contents('php://input'), true);
-            
-            if (!isset($data['store_id']) || !isset($data['products']) || !is_array($data['products'])) {
-                throw new Exception('Store ID and a list of products are required');
-            }
-            
-            $storeId = $data['store_id'];
-            $productsToRequest = $data['products'];
-            $createdCount = 0;
-            
-            getDB()->beginTransaction();
-            
-            try {
-                foreach ($productsToRequest as $productData) {
-                    $productId = null;
-                    $costPrice = 0;
-                    $supplierId = null;
-                    $quantity = $productData['quantity'];
-                    
-                    if (isset($productData['is_new']) && $productData['is_new']) {
-                        // This is a new product. Create it.
-                        $sku = 'TMP-' . time() . '-' . rand(100, 999); // Generate temporary SKU
-                        
-                        $query = "INSERT INTO products (SKU, Brand, Model, Size, Color, CostPrice, SellingPrice, MinStockLevel, MaxStockLevel, Status) 
-                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active')";
-                        
-                        $productId = dbInsert($query, [
-                            $sku,
-                            $productData['brand'],
-                            $productData['model'],
-                            $productData['size'],
-                            $productData['color'],
-                            $productData['cost_price'],
-                            $productData['selling_price'],
-                            $productData['min_stock'],
-                            $productData['max_stock']
-                        ]);
-                        
-                        // Create initial inventory entry for all stores
-                        $stores = dbFetchAll("SELECT StoreID FROM stores WHERE Status = 'Active'");
-                        foreach ($stores as $store) {
-                            dbExecute("INSERT INTO inventory (ProductID, StoreID, Quantity) VALUES (?, ?, 0)", 
-                                     [$productId, $store['StoreID']]);
-                        }
-                        
-                        $costPrice = $productData['cost_price'];
-                        // $supplierId is null, as it's a new product
-                        
-                    } else {
-                        // This is an existing product
-                        $productId = $productData['product_id'];
-                        
-                        // Get product details
-                        $product = dbFetchOne("SELECT CostPrice, SupplierID FROM products WHERE ProductID = ?", [$productId]);
-                        if (!$product) {
-                            throw new Exception("Product with ID $productId not found.");
-                        }
-                        
-                        $costPrice = $product['CostPrice'];
-                        $supplierId = $product['SupplierID'];
-                    }
-                    
-                    // Create a separate Purchase Order for each item in the request
-                    // This matches the logic of the single 'request_restock'
-                    $totalAmount = $quantity * $costPrice;
-                    
-                    $poQuery = "INSERT INTO purchaseorders (SupplierID, StoreID, TotalAmount, Status, CreatedBy) 
-                               VALUES (?, ?, ?, 'Pending', ?)";
-                    
-                    $poId = dbInsert($poQuery, [
-                        $supplierId,
-                        $storeId,
-                        $totalAmount,
-                        $_SESSION['username'] ?? 'system'
-                    ]);
-                    
-                    // Add purchase order detail
-                    $detailQuery = "INSERT INTO purchaseorderdetails (PurchaseOrderID, ProductID, Quantity, UnitCost, Subtotal) 
-                                   VALUES (?, ?, ?, ?, ?)";
-                    
-                    dbExecute($detailQuery, [
-                        $poId,
-                        $productId,
-                        $quantity,
-                        $costPrice,
-                        $totalAmount
-                    ]);
-                    
-                    $createdCount++;
-                }
-                
-                getDB()->commit();
-                
-                logInfo('Bulk restock request created', [
-                    'store_id' => $storeId,
-                    'request_count' => $createdCount
-                ]);
-                
-                jsonResponse([
-                    'success' => true, 
-                    'message' => "Successfully created $createdCount restock request(s)!",
-                ]);
-                
             } catch (Exception $e) {
                 getDB()->rollBack();
                 throw $e;
