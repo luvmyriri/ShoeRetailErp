@@ -40,3 +40,5 @@
 [2025-10-28 17:51:49] Inventory API error Context: {"action":"get_analytics","error":"Invalid action"}
 [2025-10-28 18:06:30] Inventory API error Context: {"action":"get_analytics","error":"Invalid action"}
 [2025-10-28 18:13:31] Inventory API error Context: {"action":"get_analytics","error":"Invalid action"}
+[2025-11-02 15:35:43] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
+[2025-11-02 15:35:43] Dashboard API error Context: {"action":"get_stats","error":"Database connection failed. Please check your configuration."}
