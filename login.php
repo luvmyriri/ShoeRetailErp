@@ -19,6 +19,7 @@ header('Pragma: no-cache');
 // Redirect if already logged in
 if (isLoggedIn()) {
     header('Location: public/index.php');
+    header('Location: public/index.php');
     exit;
 }
 
@@ -80,10 +81,49 @@ if (isLoggedIn()) {
 
         body {
             background: #714B67;
+            background: #714B67;
             height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .shoe-prints-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .shoe-print {
+            position: absolute;
+            color: rgba(0, 0, 0, 0.15);
+            font-size: 2rem;
+            animation: float linear infinite;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translateY(100vh) rotate(0deg);
+                opacity: 0;
+            }
+            10% {
+                opacity: 1;
+            }
+            90% {
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-100px) rotate(360deg);
+                opacity: 0;
+            }
             font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
             overflow: hidden;
             position: relative;
@@ -130,13 +170,30 @@ if (isLoggedIn()) {
             padding: 1rem;
             position: relative;
             z-index: 1;
+            position: relative;
+            z-index: 1;
         }
 
         .login-card {
             background: white;
             border-radius: 8px;
             box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
+            border-radius: 8px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
             overflow: hidden;
+            border: 1px solid #e5e5e5;
+            animation: cardFadeIn 0.4s ease-out;
+        }
+
+        @keyframes cardFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
             border: 1px solid #e5e5e5;
             animation: cardFadeIn 0.4s ease-out;
         }
@@ -156,14 +213,22 @@ if (isLoggedIn()) {
             background: white;
             color: #2d2d2d;
             padding: 2.5rem 1.5rem 1.5rem 1.5rem;
+            background: white;
+            color: #2d2d2d;
+            padding: 2.5rem 1.5rem 1.5rem 1.5rem;
             text-align: center;
+            border-bottom: 1px solid #f0f0f0;
             border-bottom: 1px solid #f0f0f0;
         }
 
         .login-header h2 {
             font-size: 1.75rem;
             font-weight: 600;
+            font-size: 1.75rem;
+            font-weight: 600;
             margin: 0 0 0.5rem 0;
+            letter-spacing: -0.3px;
+            color: var(--primary-color);
             letter-spacing: -0.3px;
             color: var(--primary-color);
         }
@@ -171,13 +236,17 @@ if (isLoggedIn()) {
         .login-header .subtitle {
             font-size: 0.9rem;
             color: #717171;
+            font-size: 0.9rem;
+            color: #717171;
             margin: 0;
+            font-weight: 400;
             font-weight: 400;
         }
 
         .login-header i {
             margin-right: 0.5rem;
             font-size: 1.75rem;
+            color: var(--primary-color);
             color: var(--primary-color);
         }
 
@@ -195,6 +264,9 @@ if (isLoggedIn()) {
             font-weight: 500;
             color: #2d2d2d;
             font-size: 0.9rem;
+            font-weight: 500;
+            color: #2d2d2d;
+            font-size: 0.9rem;
         }
 
         .form-label i {
@@ -208,14 +280,20 @@ if (isLoggedIn()) {
             border: 1px solid #d4d4d4;
             border-radius: 4px;
             font-size: 0.9rem;
+            padding: 0.7rem 1rem;
+            border: 1px solid #d4d4d4;
+            border-radius: 4px;
+            font-size: 0.9rem;
             transition: all 0.2s ease;
             background: white;
+            color: #2d2d2d;
             color: #2d2d2d;
         }
 
         .form-input:focus {
             outline: none;
             border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(113, 75, 103, 0.08);
             box-shadow: 0 0 0 3px rgba(113, 75, 103, 0.08);
             background: white;
         }
@@ -224,12 +302,18 @@ if (isLoggedIn()) {
             width: 100%;
             padding: 0.75rem 1rem;
             background: var(--primary-color);
+            padding: 0.75rem 1rem;
+            background: var(--primary-color);
             color: white;
             border: none;
             border-radius: 4px;
             font-size: 0.9rem;
             font-weight: 500;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            font-weight: 500;
             cursor: pointer;
+            transition: all 0.2s ease;
             transition: all 0.2s ease;
             margin-top: 0.5rem;
         }
@@ -238,9 +322,13 @@ if (isLoggedIn()) {
             background: #5A3B54;
             transform: translateY(-1px);
             box-shadow: 0 4px 12px rgba(113, 75, 103, 0.25);
+            background: #5A3B54;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(113, 75, 103, 0.25);
         }
 
         .btn-login:active {
+            transform: translateY(0);
             transform: translateY(0);
         }
 
@@ -250,9 +338,13 @@ if (isLoggedIn()) {
             text-align: center;
             border-top: 1px solid #f0f0f0;
             background: #fafafa;
+            border-top: 1px solid #f0f0f0;
+            background: #fafafa;
         }
 
         .login-footer small {
+            color: #717171;
+            font-size: 0.8rem;
             color: #717171;
             font-size: 0.8rem;
         }
@@ -303,6 +395,9 @@ if (isLoggedIn()) {
     <!-- Animated Shoe Prints Background -->
     <div class="shoe-prints-bg" id="shoeBackground"></div>
     
+    <!-- Animated Shoe Prints Background -->
+    <div class="shoe-prints-bg" id="shoeBackground"></div>
+    
     <div class="login-container">
         <div class="login-card">
             <div class="login-header">
@@ -350,6 +445,17 @@ if (isLoggedIn()) {
                                 <i class="fas fa-eye" id="eyeIcon"></i>
                             </button>
                         </div>
+                        <div style="position: relative;">
+                            <input type="password" class="form-input" id="password" name="password" 
+                                   placeholder="Enter your password"
+                                   style="padding-right: 3rem;"
+                                   required>
+                            <button type="button" id="togglePassword" 
+                                    style="position: absolute; right: 0.75rem; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--gray-600); cursor: pointer; padding: 0.5rem; font-size: 1.1rem;"
+                                    title="Show/Hide Password">
+                                <i class="fas fa-eye" id="eyeIcon"></i>
+                            </button>
+                        </div>
                     </div>
                     
                     <button type="submit" class="btn-login">
@@ -357,6 +463,8 @@ if (isLoggedIn()) {
                     </button>
                 </form>
                 
+                <div style="text-align: center; margin-top: 1.5rem; font-size: 0.95rem;">
+                    Don't have an account? <a href="create_account.php" style="color: var(--primary-color); font-weight: 600; text-decoration: none;">Create Account</a>
                 <div style="text-align: center; margin-top: 1.5rem; font-size: 0.95rem;">
                     Don't have an account? <a href="create_account.php" style="color: var(--primary-color); font-weight: 600; text-decoration: none;">Create Account</a>
                 </div>
@@ -406,11 +514,68 @@ if (isLoggedIn()) {
         // Continuously create new shoe prints
         setInterval(createShoeprint, 2000);
         
+        // Create floating shoe prints
+        function createShoeprint() {
+            const bg = document.getElementById('shoeBackground');
+            const shoe = document.createElement('i');
+            shoe.className = 'fas fa-shoe-prints shoe-print';
+            
+            // Random horizontal position
+            shoe.style.left = Math.random() * 100 + '%';
+            
+            // Random animation duration (15-30 seconds)
+            const duration = 15 + Math.random() * 15;
+            shoe.style.animationDuration = duration + 's';
+            
+            // Random delay
+            shoe.style.animationDelay = Math.random() * 5 + 's';
+            
+            // Random size variation
+            const size = 1.5 + Math.random() * 2;
+            shoe.style.fontSize = size + 'rem';
+            
+            bg.appendChild(shoe);
+            
+            // Remove after animation completes
+            setTimeout(() => {
+                shoe.remove();
+            }, (duration + 5) * 1000);
+        }
+        
+        // Create initial shoe prints
+        for (let i = 0; i < 15; i++) {
+            setTimeout(createShoeprint, i * 1000);
+        }
+        
+        // Continuously create new shoe prints
+        setInterval(createShoeprint, 2000);
+        
         // Auto-focus username field if empty
         document.addEventListener('DOMContentLoaded', function() {
             const usernameField = document.getElementById('username');
             if (usernameField.value === '') {
                 usernameField.focus();
+            }
+            
+            // Toggle password visibility
+            const togglePassword = document.getElementById('togglePassword');
+            const password = document.getElementById('password');
+            const eyeIcon = document.getElementById('eyeIcon');
+            
+            if (togglePassword) {
+                togglePassword.addEventListener('click', function() {
+                    const type = password.getAttribute('type') === 'password' ? 'text' : 'password';
+                    password.setAttribute('type', type);
+                    
+                    // Toggle eye icon
+                    if (type === 'password') {
+                        eyeIcon.classList.remove('fa-eye-slash');
+                        eyeIcon.classList.add('fa-eye');
+                    } else {
+                        eyeIcon.classList.remove('fa-eye');
+                        eyeIcon.classList.add('fa-eye-slash');
+                    }
+                });
             }
             
             // Toggle password visibility
