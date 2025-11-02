@@ -12,7 +12,7 @@ header('Pragma: no-cache');
 
 if (!isset($_SESSION['user_id'])) {
     // Debug output before redirect
-
+}
 
 ?>
 <!DOCTYPE html>
