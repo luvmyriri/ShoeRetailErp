@@ -154,26 +154,28 @@ try {
             break;
 
         case 'get_balance_sheet':
+            $db = getDB();
             $query = "SELECT 
                         SUM(CASE WHEN AccountType = 'Asset' THEN Debit ELSE 0 END) as assets,
                         SUM(CASE WHEN AccountType = 'Liability' THEN Credit ELSE 0 END) as liabilities,
                         SUM(CASE WHEN AccountType = 'Equity' THEN Credit ELSE 0 END) as equity
-                     FROM GeneralLedger";
+                     FROM generalledger";
             
-            $result = dbFetchOne($query);
+            $result = $db->fetchOne($query);
             jsonResponse(['success' => true, 'data' => $result]);
             break;
 
         case 'get_ar_aging':
+            $db = getDB();
             $query = "SELECT 
                         SUM(CASE WHEN DaysOverdue < 30 THEN AmountDue - PaidAmount ELSE 0 END) as current,
                         SUM(CASE WHEN DaysOverdue BETWEEN 30 AND 60 THEN AmountDue - PaidAmount ELSE 0 END) as days_30_60,
                         SUM(CASE WHEN DaysOverdue BETWEEN 61 AND 90 THEN AmountDue - PaidAmount ELSE 0 END) as days_61_90,
                         SUM(CASE WHEN DaysOverdue > 90 THEN AmountDue - PaidAmount ELSE 0 END) as over_90
-                     FROM v_outstanding_receivables
+                     FROM accountsreceivable
                      WHERE PaymentStatus != 'Paid'";
             
-            $aging = dbFetchOne($query);
+            $aging = $db->fetchOne($query);
             jsonResponse(['success' => true, 'data' => $aging]);
             break;
 

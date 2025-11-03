@@ -194,7 +194,12 @@ try {
             $ticketId = $_GET['ticket_id'] ?? null;
             if (!$ticketId) throw new Exception('Ticket ID required');
             
-            $ticket = dbFetchOne("SELECT * FROM SupportTickets WHERE TicketID = ?", [$ticketId]);
+            $db = getDB();
+            $ticket = $db->fetchOne("SELECT * FROM supporttickets WHERE TicketID = ?", [$ticketId]);
+            
+            if (!$ticket) {
+                throw new Exception('Support ticket not found');
+            }
             
             jsonResponse(['success' => true, 'data' => $ticket]);
             break;

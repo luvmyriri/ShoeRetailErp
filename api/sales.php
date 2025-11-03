@@ -71,8 +71,10 @@ try {
         case 'get_invoices':
             $storeId = $_GET['store_id'] ?? $_SESSION['store_id'];
             $status = $_GET['status'] ?? null;
+            $limit = $_GET['limit'] ?? 100;
             
-            $query = "SELECT * FROM Sales WHERE StoreID = ?";
+            $db = getDB();
+            $query = "SELECT * FROM sales WHERE StoreID = ?";
             $params = [$storeId];
             
             if ($status) {
@@ -80,8 +82,10 @@ try {
                 $params[] = $status;
             }
             
-            $query .= " ORDER BY SaleDate DESC";
-            $invoices = dbFetchAll($query, $params);
+            $query .= " ORDER BY SaleDate DESC LIMIT ?";
+            $params[] = $limit;
+            
+            $invoices = $db->fetchAll($query, $params);
             
             jsonResponse(['success' => true, 'data' => $invoices]);
             break;
@@ -114,12 +118,14 @@ try {
 
         case 'get_daily_sales':
             $date = $_GET['date'] ?? date('Y-m-d');
-            $storeId = $_GET['store_id'] ?? $_SESSION['store_id'];
+            $storeId = $_GET['store_id'] ?? $_SESSION['store_id'] ?? null;
             
-            $query = "SELECT DATE(SaleDate) as date, COUNT(*) as count, SUM(TotalAmount) as total FROM Sales WHERE StoreID = ? AND DATE(SaleDate) = ? GROUP BY DATE(SaleDate)";
-            $result = dbFetchOne($query, [$storeId, $date]);
+            $db = getDB();
+            $query = "SELECT DATE(SaleDate) as date, COUNT(*) as count, SUM(TotalAmount) as total 
+                     FROM sales WHERE StoreID = ? AND DATE(SaleDate) = ? GROUP BY DATE(SaleDate)";
+            $result = $db->fetchOne($query, [$storeId, $date]);
             
-            jsonResponse(['success' => true, 'data' => $result]);
+            jsonResponse(['success' => true, 'data' => $result ?? ['count' => 0, 'total' => 0, 'date' => $date]]);
             break;
 
         default:

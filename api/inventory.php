@@ -160,21 +160,29 @@ try {
         case 'get_stock_movements':
             $productId = $_GET['product_id'] ?? null;
             $storeId = $_GET['store_id'] ?? null;
+            $limit = $_GET['limit'] ?? 100;
             
-            $query = "SELECT * FROM StockMovements WHERE 1=1";
+            $db = getDB();
+            $query = "SELECT sm.*, p.Brand, p.Model, s.StoreName 
+                     FROM stockmovements sm
+                     LEFT JOIN products p ON sm.ProductID = p.ProductID
+                     LEFT JOIN stores s ON sm.StoreID = s.StoreID
+                     WHERE 1=1";
             $params = [];
             
             if ($productId) {
-                $query .= " AND ProductID = ?";
+                $query .= " AND sm.ProductID = ?";
                 $params[] = $productId;
             }
             if ($storeId) {
-                $query .= " AND StoreID = ?";
+                $query .= " AND sm.StoreID = ?";
                 $params[] = $storeId;
             }
             
-            $query .= " ORDER BY MovementDate DESC";
-            $movements = dbFetchAll($query, $params);
+            $query .= " ORDER BY sm.MovementDate DESC LIMIT ?";
+            $params[] = $limit;
+            
+            $movements = $db->fetchAll($query, $params);
             jsonResponse(['success' => true, 'data' => $movements]);
             break;
 
@@ -185,17 +193,69 @@ try {
             
             $data = json_decode(file_get_contents('php://input'), true);
             
-            getDB()->beginTransaction();
+            // Validate required fields
+            if (!$data['product_id'] || !$data['from_store'] || !$data['to_store'] || !$data['quantity']) {
+                throw new Exception('Product ID, from store, to store, and quantity required');
+            }
             
-            // Deduct from source
-            updateInventory($data['product_id'], $data['from_store'], -$data['quantity']);
+            if ($data['from_store'] == $data['to_store']) {
+                throw new Exception('Source and destination stores cannot be the same');
+            }
             
-            // Add to destination
-            updateInventory($data['product_id'], $data['to_store'], $data['quantity']);
+            $db = getDB();
+            $db->beginTransaction();
             
-            getDB()->commit();
-            
-            jsonResponse(['success' => true, 'message' => 'Stock transferred successfully']);
+            try {
+                // Check source inventory
+                $sourceInventory = $db->fetchOne(
+                    "SELECT Quantity FROM inventory WHERE ProductID = ? AND StoreID = ?",
+                    [$data['product_id'], $data['from_store']]
+                );
+                
+                if (!$sourceInventory || $sourceInventory['Quantity'] < $data['quantity']) {
+                    throw new Exception('Insufficient stock at source store');
+                }
+                
+                // Deduct from source
+                $db->update(
+                    "UPDATE inventory SET Quantity = Quantity - ? WHERE ProductID = ? AND StoreID = ?",
+                    [$data['quantity'], $data['product_id'], $data['from_store']]
+                );
+                
+                // Add to destination (create if not exists)
+                $db->execute(
+                    "INSERT INTO inventory (ProductID, StoreID, Quantity) VALUES (?, ?, ?)
+                     ON DUPLICATE KEY UPDATE Quantity = Quantity + ?",
+                    [$data['product_id'], $data['to_store'], $data['quantity'], $data['quantity']]
+                );
+                
+                // Record stock movements
+                $db->insert(
+                    "INSERT INTO stockmovements (ProductID, StoreID, MovementType, Quantity, UnitID, QuantityBase, ReferenceType, Notes, CreatedBy)
+                     VALUES (?, ?, 'OUT', ?, 1, ?, 'Transfer', 'Transfer out', ?)",
+                    [$data['product_id'], $data['from_store'], $data['quantity'], $data['quantity'], $_SESSION['username'] ?? 'System']
+                );
+                
+                $db->insert(
+                    "INSERT INTO stockmovements (ProductID, StoreID, MovementType, Quantity, UnitID, QuantityBase, ReferenceType, Notes, CreatedBy)
+                     VALUES (?, ?, 'IN', ?, 1, ?, 'Transfer', 'Transfer in', ?)",
+                    [$data['product_id'], $data['to_store'], $data['quantity'], $data['quantity'], $_SESSION['username'] ?? 'System']
+                );
+                
+                $db->commit();
+                
+                logInfo("Stock transferred", [
+                    'product_id' => $data['product_id'],
+                    'from_store' => $data['from_store'],
+                    'to_store' => $data['to_store'],
+                    'quantity' => $data['quantity']
+                ]);
+                
+                jsonResponse(['success' => true, 'message' => 'Stock transferred successfully']);
+            } catch (Exception $e) {
+                $db->rollback();
+                throw $e;
+            }
             break;
 
         case 'update_product':
@@ -231,13 +291,20 @@ try {
             break;
 
         case 'get_inventory_value':
-            $query = "SELECT SUM(i.Quantity * p.CostPrice) as inventory_value FROM inventory i JOIN products p ON i.ProductID = p.ProductID";
-            $result = dbFetchOne($query);
+            $db = getDB();
+            $result = $db->fetchOne(
+                "SELECT SUM(i.Quantity * p.CostPrice) as inventory_value 
+                 FROM inventory i 
+                 JOIN products p ON i.ProductID = p.ProductID"
+            );
             jsonResponse(['success' => true, 'data' => $result]);
             break;
         
         case 'get_stores':
-            $stores = dbFetchAll("SELECT StoreID, StoreName, Location FROM stores WHERE Status = 'Active' ORDER BY StoreName");
+            $db = getDB();
+            $stores = $db->fetchAll(
+                "SELECT StoreID, StoreName, Location FROM stores WHERE Status = 'Active' ORDER BY StoreName"
+            );
             jsonResponse(['success' => true, 'data' => $stores]);
             break;
         
@@ -252,44 +319,48 @@ try {
                 throw new Exception('Product ID, Store ID, and Quantity are required');
             }
             
+            $db = getDB();
+            
             // Get product details
-            $product = dbFetchOne("SELECT * FROM products WHERE ProductID = ?", [$data['product_id']]);
+            $product = $db->fetchOne("SELECT * FROM products WHERE ProductID = ?", [$data['product_id']]);
             if (!$product) {
                 throw new Exception('Product not found');
             }
             
-            // Get supplier for the product
+            // Get supplier for the product (if available)
             $supplierId = $product['SupplierID'] ?? null;
             
             // Create a purchase order request
-            getDB()->beginTransaction();
+            $db->beginTransaction();
             
             try {
-                $poQuery = "INSERT INTO purchaseorders (SupplierID, StoreID, TotalAmount, Status, CreatedBy) 
-                           VALUES (?, ?, ?, 'Pending', ?)";
-                
                 $totalAmount = $data['quantity'] * $product['CostPrice'];
                 
-                $poId = dbInsert($poQuery, [
-                    $supplierId,
-                    $data['store_id'],
-                    $totalAmount,
-                    $_SESSION['username'] ?? 'system'
-                ]);
+                $poId = $db->insert(
+                    "INSERT INTO purchaseorders (SupplierID, StoreID, TotalAmount, Status, CreatedBy) 
+                     VALUES (?, ?, ?, 'Pending', ?)",
+                    [
+                        $supplierId,
+                        $data['store_id'],
+                        $totalAmount,
+                        $_SESSION['username'] ?? 'system'
+                    ]
+                );
                 
                 // Add purchase order detail
-                $detailQuery = "INSERT INTO purchaseorderdetails (PurchaseOrderID, ProductID, Quantity, UnitCost, Subtotal) 
-                               VALUES (?, ?, ?, ?, ?)";
+                $db->insert(
+                    "INSERT INTO purchaseorderdetails (PurchaseOrderID, ProductID, Quantity, UnitCost, Subtotal) 
+                     VALUES (?, ?, ?, ?, ?)",
+                    [
+                        $poId,
+                        $data['product_id'],
+                        $data['quantity'],
+                        $product['CostPrice'],
+                        $totalAmount
+                    ]
+                );
                 
-                dbExecute($detailQuery, [
-                    $poId,
-                    $data['product_id'],
-                    $data['quantity'],
-                    $product['CostPrice'],
-                    $totalAmount
-                ]);
-                
-                getDB()->commit();
+                $db->commit();
                 
                 logInfo('Restock request created', [
                     'po_id' => $poId,
@@ -303,7 +374,7 @@ try {
                     'po_id' => $poId
                 ]);
             } catch (Exception $e) {
-                getDB()->rollBack();
+                $db->rollback();
                 throw $e;
             }
             break;
@@ -312,7 +383,13 @@ try {
             header('Content-Type: text/csv');
             header('Content-Disposition: attachment;filename="inventory_export.csv"');
             
-            $products = dbFetchAll("SELECT p.*, i.Quantity FROM Products p LEFT JOIN Inventory i ON p.ProductID = i.ProductID ORDER BY p.Brand, p.Model");
+            $db = getDB();
+            $products = $db->fetchAll(
+                "SELECT p.*, i.Quantity 
+                 FROM products p 
+                 LEFT JOIN inventory i ON p.ProductID = i.ProductID 
+                 ORDER BY p.Brand, p.Model"
+            );
             
             $output = fopen('php://output', 'w');
             fputcsv($output, ['ProductID', 'SKU', 'Brand', 'Model', 'Size', 'Color', 'CostPrice', 'SellingPrice', 'Quantity', 'MinStockLevel', 'MaxStockLevel', 'Status']);

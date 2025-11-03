@@ -12,9 +12,9 @@ class Database {
     
     // Database configuration
     private $host = 'localhost';
-    private $database = 'shoeretailer';
+    private $database = 'shoeretailerp';
     private $username = 'root';  // Change to your MySQL username
-    private $password = '';      // Change to your MySQL password
+    private $password = '0428';      // Change to your MySQL password
     private $charset = 'utf8mb4';
     private $options = [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,

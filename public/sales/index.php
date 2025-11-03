@@ -54,9 +54,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $sale_id = $db->insert("
                 INSERT INTO sales
-                    (customer_id, store_id, subtotal, tax, discount, points_used, total_amount, payment_method, notes, created_by, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
-            ", [$customer_id, $store_id, $subtotal, $tax, $discount, $points_used, $total, $payment_method, $notes, $user_id]);
+                    (CustomerID, StoreID, TotalAmount, TaxAmount, DiscountAmount, PaymentMethod, SaleDate)
+                VALUES (?, ?, ?, ?, ?, ?, NOW())
+            ", [$customer_id, $store_id, $total, $tax, $discount, $payment_method]);
 
             foreach ($sale_items as $it) {
                 $product_id = intval($it['product_id']);
@@ -64,22 +64,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $unit_price = floatval($it['price']);
                 $line_subtotal = $quantity * $unit_price;
 
-                $db->execute("INSERT INTO sales_items (sale_id, product_id, quantity, unit_price, subtotal) VALUES (?, ?, ?, ?, ?)",
-                    [$sale_id, $product_id, $quantity, $unit_price, $line_subtotal]);
-
-                $db->execute("UPDATE products SET stock = stock - ? WHERE id = ?", [$quantity, $product_id]);
+                $db->execute("INSERT INTO saledetails (SaleID, ProductID, Quantity, SalesUnitID, QuantityBase, UnitPrice, Subtotal) VALUES (?, ?, ?, 1, ?, ?, ?)",
+                    [$sale_id, $product_id, $quantity, $quantity, $unit_price, $line_subtotal]);
             }
 
         
-// Create invoice
-    $invoiceNumber = 'INV-' . date('Ymd') . '-' . str_pad($sale_id, 4, '0', STR_PAD_LEFT);
-    $db->execute(
-        "INSERT INTO invoices 
-            (sale_id, invoice_number, invoice_date, total_amount, created_at) 
-         VALUES 
-            (?, ?, NOW(), ?, NOW())",
-        [$sale_id, $invoiceNumber, $total]
-    );
+// Create invoice if needed
+    if ($sale_id) {
+        $invoiceNumber = 'INV-' . date('Ymd') . '-' . str_pad($sale_id, 4, '0', STR_PAD_LEFT);
+        try {
+            $db->execute(
+                "INSERT INTO invoices 
+                    (SaleID, InvoiceNumber, InvoiceDate, TotalAmount, CreatedAt) 
+                 VALUES 
+                    (?, ?, NOW(), ?, NOW())",
+                [$sale_id, $invoiceNumber, $total]
+            );
+        } catch (Exception $invoiceEx) {
+            // Invoice table may not exist, continue with sale
+            logError("Invoice creation failed", ['error' => $invoiceEx->getMessage()]);
+        }
+    }
 
 
  $db->commit();
@@ -112,9 +117,9 @@ exit;
         $db->beginTransaction();
         try {
             $return_id = $db->insert("
-                INSERT INTO returns (sale_id, return_date, reason, refund_method, notes, processed_by, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, NOW())
-            ", [$original_sale_id, $return_date, $reason, $refund_method, $notes, $user_id]);
+                INSERT INTO returns (SaleID, ReturnDate, Reason, RefundMethod, notes, CreatedAt)
+                VALUES (?, ?, ?, ?, ?, NOW())
+            ", [$original_sale_id, $return_date, $reason, $refund_method, $notes]);
 
             foreach ($return_items as $it) {
                 $product_id = intval($it['product_id']);
@@ -122,10 +127,8 @@ exit;
                 $refund_amount = floatval($it['refund_amount'] ?? 0);
                 $reason_detail = $it['reason_detail'] ?? '';
 
-                $db->execute("INSERT INTO return_items (return_id, product_id, quantity, refund_amount, reason_detail) VALUES (?, ?, ?, ?, ?)",
+                $db->execute("INSERT INTO return_items (ReturnID, ProductID, Quantity, RefundAmount, ReasonDetail) VALUES (?, ?, ?, ?, ?)",
                     [$return_id, $product_id, $quantity, $refund_amount, $reason_detail]);
-
-                $db->execute("UPDATE products SET stock = stock + ? WHERE id = ?", [$quantity, $product_id]);
             }
 
             $db->commit();
@@ -155,79 +158,100 @@ $today = date('Y-m-d');
 $stats = ['today_sales' => 0, 'orders_today' => 0, 'unique_customers_today' => 0, 'avg_rating' => 0];
 
 try {
-    $row = dbFetchOne("SELECT IFNULL(SUM(total_amount),0) AS total FROM sales WHERE DATE(created_at) = ?", [$today]);
+    // Check if sales table exists and has correct columns
+    $row = dbFetchOne("SELECT IFNULL(SUM(TotalAmount),0) AS total FROM sales WHERE DATE(SaleDate) = ?", [$today]);
     $stats['today_sales'] = $row['total'] ?? 0;
 
-    $row = dbFetchOne("SELECT COUNT(*) AS cnt FROM sales WHERE DATE(created_at) = ?", [$today]);
+    $row = dbFetchOne("SELECT COUNT(*) AS cnt FROM sales WHERE DATE(SaleDate) = ?", [$today]);
     $stats['orders_today'] = $row['cnt'] ?? 0;
 
-    $row = dbFetchOne("SELECT COUNT(DISTINCT customer_id) AS cnt FROM sales WHERE DATE(created_at) = ?", [$today]);
+    $row = dbFetchOne("SELECT COUNT(DISTINCT CustomerID) AS cnt FROM sales WHERE DATE(SaleDate) = ?", [$today]);
     $stats['unique_customers_today'] = $row['cnt'] ?? 0;
-
-    $row = dbFetchOne("SELECT AVG(rating) AS avg_rating FROM product_reviews");
-    $stats['avg_rating'] = $row['avg_rating'] ? round((float)$row['avg_rating'], 2) : 0;
 } catch (Exception $e) {
     logError("Stats failed", ['error' => $e->getMessage()]);
 }
 
 // --- Fetch Data ---
-$customers = safe_query_assoc("SELECT id, CONCAT(first_name, ' ', last_name) AS name, member_code FROM customers ORDER BY name");
-$stores = safe_query_assoc("SELECT id, name FROM stores ORDER BY name");
-$products = safe_query_assoc("SELECT id, sku, name, price, stock FROM products ORDER BY name");
+$customers = safe_query_assoc("SELECT CustomerID AS id, CONCAT(FirstName, ' ', LastName) AS name, MemberNumber AS member_code FROM customers ORDER BY FirstName, LastName");
+$stores = safe_query_assoc("SELECT StoreID AS id, StoreName AS name FROM stores ORDER BY StoreName");
+$products = safe_query_assoc("SELECT ProductID AS id, SKU AS sku, Model AS name, SellingPrice AS price FROM products ORDER BY Model");
 
-// --- Orders with Items ---
-$orders = safe_query_assoc("
-    SELECT s.id AS sale_id, s.total_amount, s.tax, s.discount, s.payment_method, s.created_at, s.status,
-           c.first_name AS cust_first, c.last_name AS cust_last, st.name AS store_name
-    FROM sales s
-    LEFT JOIN customers c ON s.customer_id = c.id
-    LEFT JOIN stores st ON s.store_id = st.id
-    ORDER BY s.created_at DESC
-    LIMIT 50
-");
+// --- Orders with Items (if sales table exists) ---
+$orders = [];
+try {
+    $orders = safe_query_assoc("
+        SELECT s.SaleID AS sale_id, s.TotalAmount, s.TaxAmount AS tax, s.DiscountAmount AS discount, s.PaymentMethod AS payment_method, s.SaleDate AS created_at,
+               c.FirstName AS cust_first, c.LastName AS cust_last, st.StoreName AS store_name
+        FROM sales s
+        LEFT JOIN customers c ON s.CustomerID = c.CustomerID
+        LEFT JOIN stores st ON s.StoreID = st.StoreID
+        ORDER BY s.SaleDate DESC
+        LIMIT 50
+    ");
+} catch (Exception $e) {
+    logError("Orders query failed", ['error' => $e->getMessage()]);
+}
 
 foreach ($orders as &$o) {
-    $o['items'] = safe_query_assoc("
-        SELECT si.quantity, si.unit_price, p.name AS product_name
-        FROM sales_items si
-        JOIN products p ON si.product_id = p.id
-        WHERE si.sale_id = ?
-    ", [$o['sale_id']]);
+    try {
+        $o['items'] = safe_query_assoc("
+            SELECT sd.Quantity AS quantity, sd.UnitPrice AS unit_price, p.Model AS product_name
+            FROM saledetails sd
+            JOIN products p ON sd.ProductID = p.ProductID
+            WHERE sd.SaleID = ?
+        ", [$o['sale_id']]);
+    } catch (Exception $e) {
+        $o['items'] = [];
+    }
 }
 unset($o);
 
-// --- Invoices with Items ---
-$invoices = safe_query_assoc("
-    SELECT i.id, i.invoice_number, i.sale_id, i.total_amount, i.invoice_date,
-           s.payment_method, c.first_name AS cust_first, c.last_name AS cust_last, st.name AS store_name
-    FROM invoices i
-    JOIN sales s ON i.sale_id = s.id
-    LEFT JOIN customers c ON s.customer_id = c.id
-    LEFT JOIN stores st ON s.store_id = st.id
-    ORDER BY i.invoice_date DESC
-    LIMIT 50
-");
+// --- Invoices with Items (if invoices table exists) ---
+$invoices = [];
+try {
+    $invoices = safe_query_assoc("
+        SELECT i.InvoiceID AS id, i.InvoiceNumber AS invoice_number, i.SaleID AS sale_id, i.TotalAmount AS total_amount, i.InvoiceDate AS invoice_date,
+               s.PaymentMethod AS payment_method, c.FirstName AS cust_first, c.LastName AS cust_last, st.StoreName AS store_name
+        FROM invoices i
+        JOIN sales s ON i.SaleID = s.SaleID
+        LEFT JOIN customers c ON s.CustomerID = c.CustomerID
+        LEFT JOIN stores st ON s.StoreID = st.StoreID
+        ORDER BY i.InvoiceDate DESC
+        LIMIT 50
+    ");
+} catch (Exception $e) {
+    logError("Invoices query failed", ['error' => $e->getMessage()]);
+}
 
 foreach ($invoices as &$inv) {
-    $inv['items'] = safe_query_assoc("
-        SELECT si.quantity, si.unit_price, p.name AS product_name
-        FROM sales_items si
-        JOIN products p ON si.product_id = p.id
-        WHERE si.sale_id = ?
-    ", [$inv['sale_id']]);
+    try {
+        $inv['items'] = safe_query_assoc("
+            SELECT ii.Quantity AS quantity, ii.UnitPrice AS unit_price, p.Model AS product_name
+            FROM invoiceitems ii
+            JOIN products p ON ii.ProductID = p.ProductID
+            WHERE ii.InvoiceID = ?
+        ", [$inv['id']]);
+    } catch (Exception $e) {
+        $inv['items'] = [];
+    }
 }
 unset($inv);
 
-// --- Returns ---
-$returns = safe_query_assoc("
-    SELECT r.id, r.sale_id, r.return_date, r.reason, r.refund_amount, 
-           c.first_name AS cust_first, c.last_name AS cust_last
-    FROM returns r
-    JOIN sales s ON r.sale_id = s.id
-    LEFT JOIN customers c ON s.customer_id = c.id
-    ORDER BY r.return_date DESC
-    LIMIT 50
-");
+// --- Returns (if returns table exists) ---
+$returns = [];
+try {
+    $returns = safe_query_assoc("
+        SELECT r.ReturnID AS id, r.SaleID AS sale_id, r.ReturnDate AS return_date, r.Reason AS reason,
+               c.FirstName AS cust_first, c.LastName AS cust_last
+        FROM returns r
+        JOIN sales s ON r.SaleID = s.SaleID
+        LEFT JOIN customers c ON s.CustomerID = c.CustomerID
+        ORDER BY r.ReturnDate DESC
+        LIMIT 50
+    ");
+} catch (Exception $e) {
+    logError("Returns query failed", ['error' => $e->getMessage()]);
+}
 // --- Navbar Active Link Logic --- 
 $current_page = basename($_SERVER['PHP_SELF']);
 $current_dir = basename(dirname($_SERVER['PHP_SELF']));
@@ -400,9 +424,9 @@ $nav_map = [
                                     <?php if (empty($orders)): ?>
                                         <tr><td colspan="9" style="text-align:center; padding:1.5rem;">No sales yet</td></tr>
                                     <?php else: ?>
-                                        <?php foreach ($orders as $o): 
+                        <?php foreach ($orders as $o): 
                                             $custName = trim(($o['cust_first'] ?? '') . ' ' . ($o['cust_last'] ?? '')) ?: 'Walk-in';
-                                            $status = $o['status'] ?? 'Paid';
+                                            $status = $o['PaymentStatus'] ?? 'Paid';
                                         ?>
                                             <tr>
                                                 <td>#S<?php echo str_pad($o['sale_id'], 4, '0', STR_PAD_LEFT); ?></td>
@@ -420,7 +444,7 @@ $nav_map = [
                                                         <?php endforeach; ?>
                                                     </div>
                                                 </td>
-                                                <td>₱<?php echo number_format($o['total_amount'], 2); ?></td>
+                                                <td>₱<?php echo number_format($o['TotalAmount'], 2); ?></td>
                                                 <td><?php echo htmlspecialchars($o['payment_method']); ?></td>
                                                 <td><span class="badge <?php echo ($status === 'Paid' ? 'badge-success' : 'badge-warning'); ?>"><?php echo $status; ?></span></td>
                                                 <td>
@@ -496,7 +520,7 @@ $nav_map = [
                                     <?php if (empty($invoices)): ?>
                                         <tr><td colspan="9" style="text-align:center; padding:1.5rem;">No invoices yet</td></tr>
                                     <?php else: ?>
-                                        <?php foreach ($invoices as $inv): 
+                        <?php foreach ($invoices as $inv): 
                                             $cust = trim(($inv['cust_first'] ?? '') . ' ' . ($inv['cust_last'] ?? '')) ?: 'Walk-in';
                                         ?>
                                         <tr>
@@ -516,7 +540,7 @@ $nav_map = [
                                                     <?php endforeach; ?>
                                                 </div>
                                             </td>
-                                            <td>₱<?php echo number_format($inv['total_amount'], 2); ?></td>
+                                            <td>₱<?php echo number_format($inv['TotalAmount'], 2); ?></td>
                                             <td><?php echo htmlspecialchars($inv['payment_method']); ?></td>
                                             <td>
                                                 <div class="action-buttons">

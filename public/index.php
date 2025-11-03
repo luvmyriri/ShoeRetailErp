@@ -9,8 +9,87 @@ header('Cache-Control: post-check=0, pre-check=0', false);
 header('Pragma: no-cache');
 
 if (!isset($_SESSION['user_id'])) {
-    // Debug output before redirect
+    header('Location: /ShoeRetailErp/login.php');
+    exit;
 }
+
+// Load database configuration
+require __DIR__ . '/../config/database.php';
+
+// Dashboard data aggregation
+function getDashboardData() {
+    $defaults = [
+        'inventory' => ['total_products' => 0, 'total_stock' => 0],
+        'low_stock' => ['low_stock_items' => 0],
+        'today_sales' => ['total' => 0, 'orders' => 0],
+        'month_sales' => ['total' => 0],
+        'procurement' => ['pending' => 0],
+        'ar' => ['outstanding' => 0],
+        'ap' => ['outstanding' => 0],
+        'employees' => ['total' => 0],
+        'pending_leaves' => ['pending' => 0],
+        'customers' => ['total' => 0],
+        'active_deals' => ['total' => 0],
+        'recent_sales' => []
+    ];
+    
+    try {
+        $result = $defaults;
+        
+        // Try fetching each stat, fallback to default if table doesn't exist
+        try {
+            $result['inventory'] = dbFetchOne("SELECT COUNT(*) as total_products, IFNULL(SUM(Quantity), 0) as total_stock FROM inventory") ?: $defaults['inventory'];
+        } catch (Exception $e) { }
+        
+        try {
+            $result['low_stock'] = dbFetchOne("SELECT COUNT(*) as low_stock_items FROM products WHERE (SELECT IFNULL(SUM(Quantity),0) FROM inventory WHERE inventory.ProductID = products.ProductID) <= MinStockLevel") ?: $defaults['low_stock'];
+        } catch (Exception $e) { }
+        
+        try {
+            $today = date('Y-m-d');
+            $result['today_sales'] = dbFetchOne("SELECT IFNULL(SUM(TotalAmount), 0) as total, COUNT(*) as orders FROM sales WHERE DATE(SaleDate) = ?", [$today]) ?: $defaults['today_sales'];
+        } catch (Exception $e) { }
+        
+        try {
+            $result['month_sales'] = dbFetchOne("SELECT IFNULL(SUM(TotalAmount), 0) as total FROM sales WHERE YEAR(SaleDate) = YEAR(NOW()) AND MONTH(SaleDate) = MONTH(NOW())") ?: $defaults['month_sales'];
+        } catch (Exception $e) { }
+        
+        try {
+            $result['procurement'] = dbFetchOne("SELECT COUNT(*) as pending FROM purchaseorders WHERE Status = 'Pending'") ?: $defaults['procurement'];
+        } catch (Exception $e) { }
+        
+        try {
+            $result['ar'] = dbFetchOne("SELECT IFNULL(SUM(AmountDue - PaidAmount), 0) as outstanding FROM accountsreceivable WHERE PaymentStatus IN ('Pending', 'Overdue', 'Partial')") ?: $defaults['ar'];
+        } catch (Exception $e) { }
+        
+        try {
+            $result['ap'] = dbFetchOne("SELECT IFNULL(SUM(AmountDue - PaidAmount), 0) as outstanding FROM accountspayable WHERE PaymentStatus IN ('Pending', 'Overdue', 'Partial')") ?: $defaults['ap'];
+        } catch (Exception $e) { }
+        
+        try {
+            $result['employees'] = dbFetchOne("SELECT COUNT(*) as total FROM employees WHERE Status = 'Active'") ?: $defaults['employees'];
+        } catch (Exception $e) { }
+        
+        try {
+            $result['pending_leaves'] = dbFetchOne("SELECT COUNT(*) as pending FROM leaverequests WHERE Status = 'Pending'") ?: $defaults['pending_leaves'];
+        } catch (Exception $e) { }
+        
+        try {
+            $result['customers'] = dbFetchOne("SELECT COUNT(*) as total FROM customers WHERE Status = 'Active'") ?: $defaults['customers'];
+        } catch (Exception $e) { }
+        
+        try {
+            $result['active_deals'] = dbFetchOne("SELECT COUNT(*) as total FROM supporttickets WHERE Status IN ('Open', 'In Progress')") ?: $defaults['active_deals'];
+        } catch (Exception $e) { }
+        
+        return $result;
+    } catch (Exception $e) {
+        logError('Dashboard data fetch failed', ['error' => $e->getMessage()]);
+        return $defaults;
+    }
+}
+
+$dashboard = getDashboardData();
 
 ?>
 <!DOCTYPE html>
@@ -45,8 +124,8 @@ if (!isset($_SESSION['user_id'])) {
                             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                                 <div style="flex: 1;">
                                     <div style="font-size: 12px; color: #999; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Total Products</div>
-                                    <div style="font-size: 28px; font-weight: bold; color: #333; margin-bottom: 0.25rem;">1,245</div>
-                                    <div style="font-size: 11px; color: #666;">↑ 12% from last month</div>
+                                    <div style="font-size: 28px; font-weight: bold; color: #333; margin-bottom: 0.25rem;"><?php echo number_format($dashboard['inventory']['total_products'] ?? 0); ?></div>
+                                    <div style="font-size: 11px; color: #666;">Stock: <?php echo number_format($dashboard['inventory']['total_stock'] ?? 0); ?> units</div>
                                 </div>
                                 <div style="font-size: 32px; text-align: center;">📦</div>
                             </div>
@@ -59,8 +138,8 @@ if (!isset($_SESSION['user_id'])) {
                             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                                 <div style="flex: 1;">
                                     <div style="font-size: 12px; color: #999; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Low Stock Items</div>
-                                    <div style="font-size: 28px; font-weight: bold; color: #333; margin-bottom: 0.25rem;">23</div>
-                                    <div style="font-size: 11px; color: #666;">⚠️ Needs attention</div>
+                                    <div style="font-size: 28px; font-weight: bold; color: #E74C3C; margin-bottom: 0.25rem;"><?php echo $dashboard['low_stock']['low_stock_items'] ?? 0; ?></div>
+                                    <div style="font-size: 11px; color: #666;">⚠️ Needs reordering</div>
                                 </div>
                                 <div style="font-size: 32px; text-align: center;">⚠️</div>
                             </div>
@@ -73,8 +152,8 @@ if (!isset($_SESSION['user_id'])) {
                             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                                 <div style="flex: 1;">
                                     <div style="font-size: 12px; color: #999; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Today's Sales</div>
-                                    <div style="font-size: 28px; font-weight: bold; color: #333; margin-bottom: 0.25rem;">₱45,230.50</div>
-                                    <div style="font-size: 11px; color: #666;">↑ 8.5% today</div>
+                                    <div style="font-size: 28px; font-weight: bold; color: #27AE60; margin-bottom: 0.25rem;">₱<?php echo number_format($dashboard['today_sales']['total'] ?? 0, 2); ?></div>
+                                    <div style="font-size: 11px; color: #666;"><?php echo $dashboard['today_sales']['orders'] ?? 0; ?> orders today</div>
                                 </div>
                                 <div style="font-size: 32px; text-align: center;">💳</div>
                             </div>
@@ -87,8 +166,8 @@ if (!isset($_SESSION['user_id'])) {
                             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
                                 <div style="flex: 1;">
                                     <div style="font-size: 12px; color: #999; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;">Employees</div>
-                                    <div style="font-size: 28px; font-weight: bold; color: #333; margin-bottom: 0.25rem;">28</div>
-                                    <div style="font-size: 11px; color: #666;">4 pending leave</div>
+                                    <div style="font-size: 28px; font-weight: bold; color: #333; margin-bottom: 0.25rem;"><?php echo $dashboard['employees']['total'] ?? 0; ?></div>
+                                    <div style="font-size: 11px; color: #666;"><?php echo $dashboard['pending_leaves']['pending'] ?? 0; ?> pending leave</div>
                                 </div>
                                 <div style="font-size: 32px; text-align: center;">👥</div>
                             </div>
@@ -101,28 +180,28 @@ if (!isset($_SESSION['user_id'])) {
             <div class="row" style="margin-bottom: 1rem;">
                 <div class="col-md-4" style="margin-bottom: 0.75rem;">
                     <div class="card">
-                        <div class="card-header" style="padding: 0.75rem;"><h3 style="margin: 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">👥 Active Users</h3></div>
+                        <div class="card-header" style="padding: 0.75rem;"><h3 style="margin: 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">👥 Total Customers</h3></div>
                         <div class="card-body" style="text-align: center; padding: 1rem 0.75rem;">
-                            <div style="font-size: 32px; font-weight: bold; color: #333;">12</div>
-                            <div style="font-size: 11px; color: #999; margin-top: 0.5rem;">Users currently online</div>
+                            <div style="font-size: 32px; font-weight: bold; color: #333;"><?php echo $dashboard['customers']['total'] ?? 0; ?></div>
+                            <div style="font-size: 11px; color: #999; margin-top: 0.5rem;">Active customer base</div>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-4" style="margin-bottom: 0.75rem;">
                     <div class="card">
-                        <div class="card-header" style="padding: 0.75rem;"><h3 style="margin: 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">📋 Pending Orders</h3></div>
+                        <div class="card-header" style="padding: 0.75rem;"><h3 style="margin: 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">📦 Pending Purchases</h3></div>
                         <div class="card-body" style="text-align: center; padding: 1rem 0.75rem;">
-                            <div style="font-size: 32px; font-weight: bold; color: #333;">34</div>
-                            <div style="font-size: 11px; color: #999; margin-top: 0.5rem;">Awaiting fulfillment</div>
+                            <div style="font-size: 32px; font-weight: bold; color: #333;"><?php echo $dashboard['procurement']['pending'] ?? 0; ?></div>
+                            <div style="font-size: 11px; color: #999; margin-top: 0.5rem;">Purchase orders</div>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-4" style="margin-bottom: 0.75rem;">
                     <div class="card">
-                        <div class="card-header" style="padding: 0.75rem;"><h3 style="margin: 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">✓ Completed Orders</h3></div>
+                        <div class="card-header" style="padding: 0.75rem;"><h3 style="margin: 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">🎫 Support Tickets</h3></div>
                         <div class="card-body" style="text-align: center; padding: 1rem 0.75rem;">
-                            <div style="font-size: 32px; font-weight: bold; color: #333;">156</div>
-                            <div style="font-size: 11px; color: #999; margin-top: 0.5rem;">Processed today</div>
+                            <div style="font-size: 32px; font-weight: bold; color: #333;"><?php echo $dashboard['active_deals']['total'] ?? 0; ?></div>
+                            <div style="font-size: 11px; color: #999; margin-top: 0.5rem;">Open & In Progress</div>
                         </div>
                     </div>
                 </div>
@@ -136,35 +215,34 @@ if (!isset($_SESSION['user_id'])) {
                         <div class="card-body" style="padding: 1rem 0.75rem;">
                             <div style="margin-bottom: 0.75rem; padding-bottom: 0.75rem; border-bottom: 1px solid #eee;">
                                 <div style="font-size: 11px; color: #999; margin-bottom: 0.25rem; font-weight: 600;">TOTAL AMOUNT</div>
-                                <div style="font-size: 22px; font-weight: bold; color: #333;">₱125,400.00</div>
+                                <div style="font-size: 22px; font-weight: bold; color: #E74C3C;">₱<?php echo number_format($dashboard['ar']['outstanding'] ?? 0, 2); ?></div>
                             </div>
                             <div>
-                                <div style="font-size: 11px; color: #999; margin-bottom: 0.25rem; font-weight: 600;">FROM ACCOUNTS</div>
-                                <div style="font-size: 22px; font-weight: bold; color: #333;">7 customers</div>
+                                <div style="font-size: 11px; color: #999; margin-bottom: 0.25rem; font-weight: 600;">ACCOUNTS PAYABLE</div>
+                                <div style="font-size: 22px; font-weight: bold; color: #3498DB;">₱<?php echo number_format($dashboard['ap']['outstanding'] ?? 0, 2); ?></div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-4" style="margin-bottom: 0.75rem;">
                     <div class="card">
-                        <div class="card-header" style="padding: 0.75rem;"><h3 style="margin: 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">📈 Revenue Progress</h3></div>
+                        <div class="card-header" style="padding: 0.75rem;"><h3 style="margin: 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">📈 Month Revenue</h3></div>
                         <div class="card-body" style="padding: 1rem 0.75rem;">
-                            <div style="font-size: 11px; color: #999; margin-bottom: 0.5rem; font-weight: 600;">CURRENT REVENUE THIS MONTH</div>
-                            <div style="font-size: 22px; font-weight: bold; color: #333; margin-bottom: 0.75rem;">₱325,650</div>
-                            <div style="background-color: #f0f0f0; border-radius: 8px; height: 8px; overflow: hidden; margin-bottom: 0.5rem;">
-                                <div style="height: 100%; width: 65%; background: linear-gradient(to right, #667eea, #764ba2); border-radius: 8px;"></div>
+                            <div style="font-size: 11px; color: #999; margin-bottom: 0.5rem; font-weight: 600;">CURRENT MONTH TOTAL</div>
+                            <div style="font-size: 22px; font-weight: bold; color: #27AE60; margin-bottom: 0.75rem;">₱<?php echo number_format($dashboard['month_sales']['total'] ?? 0, 2); ?></div>
+                            <div style="background-color: #f0f0f0; border-radius: 8px; height: 8px; overflow: hidden;">
+                                <div style="height: 100%; width: 100%; background: linear-gradient(to right, #667eea, #764ba2); border-radius: 8px;"></div>
                             </div>
-                            <div style="font-size: 10px; color: #999;"><strong>65%</strong> of ₱500,000 target</div>
                         </div>
                     </div>
                 </div>
                 <div class="col-md-4" style="margin-bottom: 0.75rem;">
                     <div class="card">
-                        <div class="card-header" style="padding: 0.75rem;"><h3 style="margin: 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">✓ System Health</h3></div>
+                        <div class="card-header" style="padding: 0.75rem;"><h3 style="margin: 0; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">⚙️ System Status</h3></div>
                         <div class="card-body" style="text-align: center; padding: 1rem 0.75rem;">
-                            <div style="font-size: 11px; color: #999; margin-bottom: 0.75rem; font-weight: 600;">SERVER UPTIME</div>
-                            <div style="font-size: 32px; font-weight: bold; color: #333; margin-bottom: 0.5rem;">99.9%</div>
-                            <div style="font-size: 11px; color: #666; background-color: #f5f5f5; padding: 0.5rem; border-radius: 4px; font-weight: 600;">✓ All systems operational</div>
+                            <div style="font-size: 11px; color: #999; margin-bottom: 0.75rem; font-weight: 600;">All Modules</div>
+                            <div style="font-size: 32px; font-weight: bold; color: #27AE60; margin-bottom: 0.5rem;">✓</div>
+                            <div style="font-size: 11px; color: #666; background-color: #f5f5f5; padding: 0.5rem; border-radius: 4px; font-weight: 600;">Online</div>
                         </div>
                     </div>
                 </div>
@@ -181,7 +259,7 @@ if (!isset($_SESSION['user_id'])) {
                             <div class="card-body" style="text-align: center; padding: 1.5rem 1rem;">
                                 <div style="font-size: 40px; margin-bottom: 0.75rem;">📦</div>
                                 <h3 style="margin: 0 0 0.5rem 0; font-size: 15px; font-weight: 600; color: #333;">Inventory</h3>
-                                <p style="margin: 0; font-size: 12px; color: #666;">Manage stock & products</p>
+                                <p style="margin: 0; font-size: 12px; color: #666;">Stock: <?php echo number_format($dashboard['inventory']['total_stock'] ?? 0); ?> units</p>
                             </div>
                         </div>
                     </a>
@@ -192,7 +270,7 @@ if (!isset($_SESSION['user_id'])) {
                             <div class="card-body" style="text-align: center; padding: 1.5rem 1rem;">
                                 <div style="font-size: 40px; margin-bottom: 0.75rem;">💰</div>
                                 <h3 style="margin: 0 0 0.5rem 0; font-size: 15px; font-weight: 600; color: #333;">Sales</h3>
-                                <p style="margin: 0; font-size: 12px; color: #666;">Track orders & revenue</p>
+                                <p style="margin: 0; font-size: 12px; color: #666;">₱<?php echo number_format($dashboard['month_sales']['total'] ?? 0, 2); ?> this month</p>
                             </div>
                         </div>
                     </a>
@@ -203,7 +281,7 @@ if (!isset($_SESSION['user_id'])) {
                             <div class="card-body" style="text-align: center; padding: 1.5rem 1rem;">
                                 <div style="font-size: 40px; margin-bottom: 0.75rem;">🏭</div>
                                 <h3 style="margin: 0 0 0.5rem 0; font-size: 15px; font-weight: 600; color: #333;">Procurement</h3>
-                                <p style="margin: 0; font-size: 12px; color: #666;">Purchase & suppliers</p>
+                                <p style="margin: 0; font-size: 12px; color: #666;"><?php echo $dashboard['procurement']['pending'] ?? 0; ?> pending POs</p>
                             </div>
                         </div>
                     </a>
@@ -216,18 +294,18 @@ if (!isset($_SESSION['user_id'])) {
                             <div class="card-body" style="text-align: center; padding: 1.5rem 1rem;">
                                 <div style="font-size: 40px; margin-bottom: 0.75rem;">📊</div>
                                 <h3 style="margin: 0 0 0.5rem 0; font-size: 15px; font-weight: 600; color: #333;">Accounting</h3>
-                                <p style="margin: 0; font-size: 12px; color: #666;">Financial reports</p>
+                                <p style="margin: 0; font-size: 12px; color: #666;">AR: ₱<?php echo number_format($dashboard['ar']['outstanding'] ?? 0, 0); ?></p>
                             </div>
                         </div>
                     </a>
                 </div>
                 <div class="col-md-4" style="margin-bottom: 0.75rem;">
-                    <a href="customers/index.php" style="text-decoration: none; color: inherit;">
+                    <a href="crm/CrmDashboard.php" style="text-decoration: none; color: inherit;">
                         <div class="card" style="cursor: pointer; transition: all 0.3s;" onmouseover="this.style.boxShadow='0 8px 20px rgba(0,0,0,0.15)'" onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)'">
                             <div class="card-body" style="text-align: center; padding: 1.5rem 1rem;">
                                 <div style="font-size: 40px; margin-bottom: 0.75rem;">👥</div>
-                                <h3 style="margin: 0 0 0.5rem 0; font-size: 15px; font-weight: 600; color: #333;">Customers</h3>
-                                <p style="margin: 0; font-size: 12px; color: #666;">Customer management</p>
+                                <h3 style="margin: 0 0 0.5rem 0; font-size: 15px; font-weight: 600; color: #333;">CRM</h3>
+                                <p style="margin: 0; font-size: 12px; color: #666;"><?php echo $dashboard['customers']['total'] ?? 0; ?> customers</p>
                             </div>
                         </div>
                     </a>
@@ -237,8 +315,8 @@ if (!isset($_SESSION['user_id'])) {
                         <div class="card" style="cursor: pointer; transition: all 0.3s;" onmouseover="this.style.boxShadow='0 8px 20px rgba(0,0,0,0.15)'" onmouseout="this.style.boxShadow='0 1px 3px rgba(0,0,0,0.08)'">
                             <div class="card-body" style="text-align: center; padding: 1.5rem 1rem;">
                                 <div style="font-size: 40px; margin-bottom: 0.75rem;">👔</div>
-                                <h3 style="margin: 0 0 0.5rem 0; font-size: 15px; font-weight: 600; color: #333;">Human Resources</h3>
-                                <p style="margin: 0; font-size: 12px; color: #666;">Employee management</p>
+                                <h3 style="margin: 0 0 0.5rem 0; font-size: 15px; font-weight: 600; color: #333;">HR</h3>
+                                <p style="margin: 0; font-size: 12px; color: #666;"><?php echo $dashboard['employees']['total'] ?? 0; ?> employees</p>
                             </div>
                         </div>
                     </a>

@@ -92,27 +92,60 @@ try {
             break;
 
         case 'create_goods_receipt':
-            if ($method !== 'POST' || !hasPermission('Manager')) {
-                throw new Exception('Unauthorized');
+            if ($method !== 'POST') {
+                throw new Exception('Method not allowed');
             }
             
             $data = json_decode(file_get_contents('php://input'), true);
             
-            $query = "INSERT INTO GoodsReceipts (PurchaseOrderID, ReceiptDate, Notes) VALUES (?, NOW(), ?)";
-            $receiptId = dbInsert($query, [$data['po_id'], $data['notes'] ?? null]);
+            if (!isset($data['po_id'])) {
+                throw new Exception('Purchase Order ID required');
+            }
             
-            jsonResponse(['success' => true, 'message' => 'Goods receipt created', 'receipt_id' => $receiptId]);
+            $db = getDB();
+            $db->beginTransaction();
+            
+            try {
+                // Verify PO exists
+                $po = $db->fetchOne("SELECT * FROM purchaseorders WHERE PurchaseOrderID = ?", [$data['po_id']]);
+                if (!$po) {
+                    throw new Exception('Purchase order not found');
+                }
+                
+                // Create goods receipt
+                $query = "INSERT INTO goodsreceipts (PurchaseOrderID, ReceiptDate, Notes, CreatedBy) VALUES (?, NOW(), ?, ?)";
+                $receiptId = $db->insert($query, [
+                    $data['po_id'],
+                    $data['notes'] ?? null,
+                    $_SESSION['username'] ?? 'System'
+                ]);
+                
+                // Update PO status
+                $db->update(
+                    "UPDATE purchaseorders SET Status = 'Received', ReceivedDate = NOW() WHERE PurchaseOrderID = ?",
+                    [$data['po_id']]
+                );
+                
+                $db->commit();
+                
+                logInfo('Goods receipt created', ['receipt_id' => $receiptId, 'po_id' => $data['po_id']]);
+                jsonResponse(['success' => true, 'message' => 'Goods receipt created', 'receipt_id' => $receiptId]);
+            } catch (Exception $e) {
+                $db->rollback();
+                throw $e;
+            }
             break;
 
         case 'get_procurement_summary':
             $startDate = $_GET['start_date'] ?? date('Y-m-01');
             $endDate = $_GET['end_date'] ?? date('Y-m-d');
-            $storeId = $_GET['store_id'] ?? $_SESSION['store_id'];
+            $storeId = $_GET['store_id'] ?? $_SESSION['store_id'] ?? null;
             
-            $query = "SELECT COUNT(*) as total_pos, SUM(TotalAmount) as total_spend FROM PurchaseOrders 
+            $db = getDB();
+            $query = "SELECT COUNT(*) as total_pos, SUM(TotalAmount) as total_spend FROM purchaseorders 
                      WHERE StoreID = ? AND DATE(OrderDate) BETWEEN ? AND ?";
             
-            $stats = dbFetchOne($query, [$storeId, $startDate, $endDate]);
+            $stats = $db->fetchOne($query, [$storeId, $startDate, $endDate]);
             jsonResponse(['success' => true, 'data' => $stats]);
             break;
 

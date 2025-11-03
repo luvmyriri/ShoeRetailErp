@@ -1,0 +1,237 @@
+/* CRM Content Integration Styles */
+
+.crm-content {
+    width: 100%;
+}
+
+/* Override CRM-specific custom styles */
+.crm-content .navbar,
+.crm-content nav {
+    display: none !important;
+}
+
+.crm-content .container {
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+.crm-content .page-header {
+    display: none;
+}
+
+/* Ensure CRM content respects global theme spacing */
+.crm-content > * {
+    margin: 0;
+    padding: 0;
+}
+
+.crm-content .stats-grid,
+.crm-content .dashboard-grid,
+.crm-content .content-section {
+    margin-top: var(--spacing-lg);
+}
+
+/* Normalize card styling */
+.crm-content .card,
+.crm-content .crm-card,
+.crm-content .stat-card {
+    background-color: white;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    transition: all var(--transition-base);
+}
+
+/* Fix button styling */
+.crm-content .btn {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-decoration: none;
+    border: none;
+}
+
+.crm-content .btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.crm-content .btn-primary:hover {
+    background-color: var(--primary-light);
+    box-shadow: var(--shadow-lg);
+}
+
+.crm-content .btn-secondary {
+    background-color: var(--secondary-color);
+    color: var(--gray-900);
+}
+
+.crm-content .btn-secondary:hover {
+    background-color: #E5A636;
+    box-shadow: var(--shadow-lg);
+}
+
+/* Normalize table styling */
+.crm-content table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: white;
+    margin: var(--spacing-lg) 0;
+}
+
+.crm-content table thead {
+    background-color: var(--gray-50);
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.crm-content table th {
+    padding: var(--spacing-md) var(--spacing-lg);
+    text-align: left;
+    font-weight: 600;
+    color: var(--gray-700);
+    font-size: var(--font-size-sm);
+}
+
+.crm-content table td {
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.crm-content table tbody tr:hover {
+    background-color: var(--gray-50);
+}
+
+/* Normalize form elements */
+.crm-content input[type="text"],
+.crm-content input[type="email"],
+.crm-content input[type="password"],
+.crm-content input[type="number"],
+.crm-content input[type="date"],
+.crm-content select,
+.crm-content textarea {
+    width: 100%;
+    padding: var(--spacing-md);
+    border: 1px solid var(--gray-300);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    font-family: var(--font-family-sans);
+    transition: all var(--transition-fast);
+}
+
+.crm-content input:focus,
+.crm-content select:focus,
+.crm-content textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(113, 75, 103, 0.1);
+}
+
+/* Normalize modal styling */
+.crm-content .modal,
+.crm-content .modal-content {
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+}
+
+.crm-content .modal-header {
+    padding: var(--spacing-lg);
+    border-bottom: 1px solid var(--gray-200);
+    background-color: var(--gray-50);
+}
+
+.crm-content .modal-body {
+    padding: var(--spacing-lg);
+}
+
+.crm-content .modal-footer {
+    padding: var(--spacing-lg);
+    border-top: 1px solid var(--gray-200);
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-md);
+}
+
+/* Typography normalization */
+.crm-content h1 {
+    display: none;
+}
+
+.crm-content h2 {
+    font-size: var(--font-size-2xl);
+    color: var(--gray-900);
+    margin: var(--spacing-lg) 0 var(--spacing-md) 0;
+    font-weight: 600;
+}
+
+.crm-content h3 {
+    font-size: var(--font-size-xl);
+    color: var(--gray-800);
+    margin: var(--spacing-md) 0 var(--spacing-sm) 0;
+    font-weight: 600;
+}
+
+.crm-content p {
+    color: var(--gray-700);
+    line-height: var(--line-height-normal);
+}
+
+/* Alert normalization */
+.crm-content .alert,
+.crm-content .success-message,
+.crm-content .error-message {
+    padding: var(--spacing-lg);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-lg);
+    display: flex;
+    gap: var(--spacing-md);
+    align-items: flex-start;
+}
+
+.crm-content .success-message {
+    background-color: #D5F4E6;
+    border: 1px solid var(--success-color);
+    color: #1E5631;
+}
+
+.crm-content .error-message {
+    background-color: #FADBD8;
+    border: 1px solid var(--danger-color);
+    color: #78281F;
+}
+
+/* Grid layout normalization */
+.crm-content .grid,
+.crm-content .grid-2,
+.crm-content .grid-3 {
+    display: grid;
+    gap: var(--spacing-lg);
+    margin: var(--spacing-lg) 0;
+}
+
+.crm-content .grid-2 {
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+}
+
+.crm-content .grid-3 {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+/* Responsive fixes */
+@media (max-width: 768px) {
+    .crm-content .grid-2,
+    .crm-content .grid-3 {
+        grid-template-columns: 1fr;
+    }
+
+    .crm-content table {
+        font-size: var(--font-size-sm);
+    }
+
+    .crm-content table th,
+    .crm-content table td {
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+}
