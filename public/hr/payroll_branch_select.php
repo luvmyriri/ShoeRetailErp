@@ -1,3 +1,20 @@
+<?php
+session_start();
+
+if (!isset($_SESSION['user_id'])) {
+    header('Location: /ShoeRetailErp/login.php');
+    exit;
+}
+
+// Role-based access control
+$userRole = $_SESSION['role'] ?? '';
+$allowedRoles = ['Admin', 'Manager', 'HR'];
+
+if (!in_array($userRole, $allowedRoles)) {
+    header('Location: /ShoeRetailErp/public/index.php?error=access_denied');
+    exit;
+}
+?>
 <div class="d-flex align-items-center justify-content-between mb-4">
   <div>
     <p class="text-muted mb-0" style="font-size:14px;">Select a branch to manage payroll</p>

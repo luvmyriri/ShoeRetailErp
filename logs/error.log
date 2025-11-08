@@ -285,3 +285,15 @@
 [2025-11-02 19:19:02] Query failed Context: {"sql":"\r\n    SELECT r.id, r.sale_id, r.return_date, r.reason, r.refund_amount, \r\n           c.first_name AS cust_first, c.last_name AS cust_last\r\n    FROM returns r\r\n    JOIN sales s ON r.sale_id = s.id\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    ORDER BY r.return_date DESC\r\n    LIMIT 50\r\n","error":"Database query failed."}
 [2025-11-02 19:20:30] Stats failed Context: {"error":"Database query failed."}
 [2025-11-02 19:20:30] Query failed Context: {"sql":"\r\n        SELECT s.SaleID AS sale_id, s.subtotal, s.tax, s.discount, s.PaymentMethod AS payment_method, s.CreatedAt AS created_at,\r\n               c.FirstName AS cust_first, c.LastName AS cust_last, st.StoreName AS store_name\r\n        FROM sales s\r\n        LEFT JOIN customers c ON s.CustomerID = c.CustomerID\r\n        LEFT JOIN stores st ON s.StoreID = st.StoreID\r\n        ORDER BY s.CreatedAt DESC\r\n        LIMIT 50\r\n    ","error":"Database query failed."}
+[2025-11-07 09:47:29] Login system error Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-11-07 09:48:08] Failed login attempt Context: {"username":"admin"}
+[2025-11-07 09:48:13] Failed login attempt Context: {"username":"admin"}
+[2025-11-07 09:54:10] Failed login attempt Context: {"username":"admin"}
+[2025-11-07 09:54:14] Failed login attempt Context: {"username":"admin"}
+[2025-11-07 09:54:19] Failed login attempt Context: {"username":"admin"}
+[2025-11-07 09:54:51] Failed login attempt Context: {"username":"admin"}
+[2025-11-07 10:02:45] Failed login attempt Context: {"username":"admin"}
+[2025-11-07 10:02:49] Failed login attempt Context: {"username":"admin"}
+[2025-11-07 10:03:12] Failed login attempt Context: {"username":"admin"}
+[2025-11-07 10:03:36] Failed login attempt Context: {"username":"admin"}
+[2025-11-07 10:07:33] Failed login attempt Context: {"username":"admin"}

@@ -12,7 +12,7 @@ if (!isset($_SESSION['user_id'])) {
 
 // Role-based access control
 $userRole = $_SESSION['role'] ?? '';
-$allowedRoles = ['Admin', 'Manager', 'Accounting'];
+$allowedRoles = ['Admin', 'Manager', 'Accountant'];
 
 if (!in_array($userRole, $allowedRoles)) {
     header('Location: /ShoeRetailErp/public/index.php?error=access_denied');

@@ -20,11 +20,11 @@ $roleAccess = [
     'Manager' => ['inventory', 'sales', 'procurement', 'accounting', 'crm'],
     'Inventory' => ['inventory'],
     'Sales' => ['sales', 'crm'],
-    'Procurement' => ['procurement', 'inventory'],
-    'Accounting' => ['accounting'],
+    'Procurement' => ['procurement'],
+    'Accountant' => ['accounting'],
     'HR' => ['hr'],
-    'Cashier' => ['sales', 'crm'],
-    'Support' => ['crm'],
+    'Cashier' => ['sales'],
+    'Customer Service' => ['crm'],
 ];
 
 // Get allowed modules for current user
@@ -55,15 +55,16 @@ $modules = [
     'sales' => [
         'label' => 'Sales',
         'url' => '/ShoeRetailErp/public/sales/index.php',
-        'pages' => []
+        'pages' => [
+            ['label' => 'Dashboard', 'url' => '/ShoeRetailErp/public/sales/SalesDashboard.php'],
+            ['label' => 'Point of Sale', 'url' => '/ShoeRetailErp/public/sales/pos.php'],
+        ]
     ],
     'procurement' => [
         'label' => 'Procurement',
         'url' => '/ShoeRetailErp/public/procurement/index.php',
         'pages' => [
             ['label' => 'Orders', 'url' => '/ShoeRetailErp/public/procurement/index.php'],
-            ['label' => 'Quality Check', 'url' => '/ShoeRetailErp/public/procurement/qualitychecking.php'],
-            ['label' => 'Good Receipts', 'url' => '/ShoeRetailErp/public/procurement/goodreceipts.php'],
             ['label' => 'Reports', 'url' => '/ShoeRetailErp/public/procurement/reports.php'],
         ]
     ],
@@ -171,7 +172,7 @@ $modules = [
     padding: var(--spacing-md) 0 !important;
     border: none;
     background: none;
-    font-weight: 500;
+    font-weight: 600;
     color: var(--gray-700);
     text-decoration: none;
     transition: all var(--transition-fast);
@@ -255,7 +256,9 @@ $modules = [
             <span>Shoe Retail ERP</span>
         </div>
         <ul class="navbar-nav">
-            <li><a href="/ShoeRetailErp/public/index.php" class="<?php echo $is_dashboard ? 'active' : ''; ?>">Dashboard</a></li>
+            <?php if ($userRole === 'Admin'): ?>
+                <li><a href="/ShoeRetailErp/public/index.php" class="<?php echo $is_dashboard ? 'active' : ''; ?>">Dashboard</a></li>
+            <?php endif; ?>
             
             <?php foreach ($modules as $key => $module): ?>
                 <?php if (canAccessModule($key)): ?>

@@ -13,6 +13,39 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
+// Role-based access control - Only Admin can access main dashboard
+$userRole = $_SESSION['role'] ?? '';
+
+if ($userRole !== 'Admin') {
+    // Redirect non-admin users to their respective module dashboards
+    switch ($userRole) {
+        case 'Manager':
+        case 'Inventory':
+            header('Location: /ShoeRetailErp/public/inventory/index.php');
+            exit;
+        case 'HR':
+            header('Location: /ShoeRetailErp/public/hr/index.php');
+            exit;
+        case 'Sales':
+        case 'Cashier':
+            header('Location: /ShoeRetailErp/public/sales/SalesDashboard.php');
+            exit;
+        case 'Procurement':
+            header('Location: /ShoeRetailErp/public/procurement/index.php');
+            exit;
+        case 'Accountant':
+            header('Location: /ShoeRetailErp/public/accounting/index.php');
+            exit;
+        case 'Customer Service':
+            header('Location: /ShoeRetailErp/public/crm/index.php');
+            exit;
+        default:
+            // If role not recognized, show access denied
+            header('Location: /ShoeRetailErp/login.php?error=access_denied');
+            exit;
+    }
+}
+
 // Load database configuration
 require __DIR__ . '/../config/database.php';
 

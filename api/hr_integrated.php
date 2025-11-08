@@ -11,6 +11,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 require_once '../config/database.php';
 require_once '../includes/core_functions.php';
+require_once '../includes/hr_functions.php';
 
 header('Content-Type: application/json');
 
@@ -74,11 +75,28 @@ try {
         case 'process_payroll':
             processPayrollHR();
             break;
+        case 'pay_payroll':
+            payPayrollHR();
+            break;
         case 'get_payroll_records':
             getPayrollRecordsHR();
             break;
         case 'get_employee_payroll':
             getEmployeePayrollHR();
+            break;
+        case 'search_employees':
+            searchEmployeesHR();
+            break;
+
+        // ===== PAYROLL CRUD (manual entries) =====
+        case 'create_payroll':
+            createPayrollHR();
+            break;
+        case 'update_payroll':
+            updatePayrollHR();
+            break;
+        case 'delete_payroll':
+            deletePayrollHR();
             break;
         
         default:
@@ -101,11 +119,11 @@ function getEmployeesHR() {
     $offset = $_GET['offset'] ?? 0;
     
     try {
-        $query = "SELECT e.*, s.StoreName, d.DepartmentName, b.BranchName
-                  FROM employees e 
-                  LEFT JOIN stores s ON e.StoreID = s.StoreID
-                  LEFT JOIN departments d ON e.DepartmentID = d.DepartmentID
-                  LEFT JOIN branches b ON d.BranchID = b.BranchID
+        $query = "SELECT e.*, s.StoreName, d.DepartmentName, b.BranchName\r
+                  FROM Employees e \r
+                  LEFT JOIN Stores s ON e.StoreID = s.StoreID\r
+                  LEFT JOIN Departments d ON e.DepartmentID = d.DepartmentID\r
+                  LEFT JOIN Branches b ON d.BranchID = b.BranchID\r
                   WHERE 1=1";
         
         $params = [];
@@ -127,7 +145,7 @@ function getEmployeesHR() {
         $params[] = $limit;
         $params[] = $offset;
         
-        $employees = getDB()->fetchAll($query, $params);
+        $employees = dbFetchAll($query, $params);
         jsonResponse(['success' => true, 'data' => $employees]);
     } catch (Exception $e) {
         throw $e;
@@ -141,12 +159,12 @@ function getEmployeeHR() {
     }
     
     try {
-        $employee = getDB()->fetchOne(
-            "SELECT e.*, s.StoreName, d.DepartmentName FROM employees e
-             LEFT JOIN stores s ON e.StoreID = s.StoreID
-             LEFT JOIN departments d ON e.DepartmentID = d.DepartmentID
-             WHERE e.EmployeeID = ?",
-            [$employeeId]
+        $employee = dbFetchOne(\r
+            "SELECT e.*, s.StoreName, d.DepartmentName FROM Employees e\r
+             LEFT JOIN Stores s ON e.StoreID = s.StoreID\r
+             LEFT JOIN Departments d ON e.DepartmentID = d.DepartmentID\r
+             WHERE e.EmployeeID = ?",\r
+            [$employeeId]\r
         );
         
         if (!$employee) {
@@ -175,9 +193,9 @@ function addEmployeeHR() {
         }
         
         // Check uniqueness
-        $existing = getDB()->fetchOne(
-            "SELECT EmployeeID FROM employees WHERE Email = ?",
-            [$data['email']]
+        $existing = dbFetchOne(\r
+            "SELECT EmployeeID FROM Employees WHERE Email = ?",\r
+            [$data['email']]\r
         );
         if ($existing) {
             throw new Exception('Email already exists');
@@ -189,22 +207,22 @@ function addEmployeeHR() {
                    StreetAddress, City, ZipCode)
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Active', ?, ?, ?, ?)";
         
-        $employeeId = getDB()->insert($query, [
-            $data['first_name'],
-            $data['last_name'],
-            $data['email'],
-            $data['phone'] ?? null,
-            $data['hire_date'],
-            $data['hourly_rate'],
-            $data['salary'] ?? 0,
-            $data['department_id'] ?? null,
-            $data['store_id'] ?? $_SESSION['store_id'] ?? null,
-            $data['gender'] ?? null,
-            $data['marital_status'] ?? null,
-            $data['birth_date'] ?? null,
-            $data['street_address'] ?? null,
-            $data['city'] ?? null,
-            $data['zip_code'] ?? null
+        $employeeId = dbInsert($query, [\r
+            $data['first_name'],\r
+            $data['last_name'],\r
+            $data['email'],\r
+            $data['phone'] ?? null,\r
+            $data['hire_date'],\r
+            $data['hourly_rate'],\r
+            $data['salary'] ?? 0,\r
+            $data['department_id'] ?? null,\r
+            $data['store_id'] ?? $_SESSION['store_id'] ?? null,\r
+            $data['gender'] ?? null,\r
+            $data['marital_status'] ?? null,\r
+            $data['birth_date'] ?? null,\r
+            $data['street_address'] ?? null,\r
+            $data['city'] ?? null,\r
+            $data['zip_code'] ?? null\r
         ]);
         
         logInfo("Employee added", ['employee_id' => $employeeId, 'email' => $data['email']]);
@@ -246,9 +264,9 @@ function updateEmployeeHR() {
         }
         
         $params[] = $employeeId;
-        $query = "UPDATE employees SET " . implode(", ", $updates) . " WHERE EmployeeID = ?";
-        
-        getDB()->update($query, $params);
+        $query = "UPDATE Employees SET " . implode(", ", $updates) . " WHERE EmployeeID = ?";\r
+        \r
+        dbUpdate($query, $params);
         logInfo("Employee updated", ['employee_id' => $employeeId]);
         jsonResponse(['success' => true, 'message' => 'Employee updated']);
     } catch (Exception $e) {
@@ -267,8 +285,8 @@ function getAttendanceHR() {
     $endDate = $_GET['end_date'] ?? date('Y-m-d');
     
     try {
-        $query = "SELECT a.*, e.FirstName, e.LastName FROM attendance a
-                  JOIN employees e ON a.EmployeeID = e.EmployeeID
+        $query = "SELECT a.*, e.FirstName, e.LastName FROM Attendance a\r
+                  JOIN Employees e ON a.EmployeeID = e.EmployeeID\r
                   WHERE 1=1";
         
         $params = [];
@@ -289,7 +307,7 @@ function getAttendanceHR() {
         
         $query .= " ORDER BY a.AttendanceDate DESC";
         
-        $records = getDB()->fetchAll($query, $params);
+        $records = dbFetchAll($query, $params);
         jsonResponse(['success' => true, 'data' => $records]);
     } catch (Exception $e) {
         throw $e;
@@ -308,7 +326,7 @@ function logAttendanceHR() {
             throw new Exception('Employee ID and date required');
         }
         
-        $query = "INSERT INTO attendance 
+        $query = "INSERT INTO Attendance \r
                   (EmployeeID, AttendanceDate, LogInTime, LogOutTime, Notes)
                   VALUES (?, ?, ?, ?, ?)
                   ON DUPLICATE KEY UPDATE 
@@ -316,7 +334,7 @@ function logAttendanceHR() {
                     LogOutTime = VALUES(LogOutTime),
                     Notes = VALUES(Notes)";
         
-        $attendanceId = getDB()->insert($query, [
+        $attendanceId = dbInsert($query, [
             $data['employee_id'],
             $data['date'],
             $data['log_in_time'] ?? null,
@@ -337,13 +355,13 @@ function getAttendanceReportHR() {
     $endDate = $_GET['end_date'] ?? date('Y-m-d');
     
     try {
-        $query = "SELECT e.EmployeeID, e.FirstName, e.LastName,
-                         COUNT(CASE WHEN LogInTime IS NOT NULL THEN 1 END) as days_present,
-                         COUNT(CASE WHEN LogInTime IS NULL THEN 1 END) as days_absent,
-                         SUM(HoursWorked) as total_hours
-                  FROM employees e
-                  LEFT JOIN attendance a ON e.EmployeeID = a.EmployeeID 
-                                          AND DATE(a.AttendanceDate) BETWEEN ? AND ?
+        $query = "SELECT e.EmployeeID, e.FirstName, e.LastName,\r
+                         COUNT(CASE WHEN LogInTime IS NOT NULL THEN 1 END) as days_present,\r
+                         COUNT(CASE WHEN LogInTime IS NULL THEN 1 END) as days_absent,\r
+                         SUM(HoursWorked) as total_hours\r
+                  FROM Employees e\r
+                  LEFT JOIN Attendance a ON e.EmployeeID = a.EmployeeID \r
+                                          AND DATE(a.AttendanceDate) BETWEEN ? AND ?\r
                   WHERE 1=1";
         
         $params = [$startDate, $endDate];
@@ -355,7 +373,7 @@ function getAttendanceReportHR() {
         
         $query .= " GROUP BY e.EmployeeID";
         
-        $report = getDB()->fetchAll($query, $params);
+        $report = dbFetchAll($query, $params);
         jsonResponse(['success' => true, 'data' => $report]);
     } catch (Exception $e) {
         throw $e;
@@ -385,21 +403,21 @@ function requestLeaveHR() {
         
         // Check leave balance
         $year = date('Y', strtotime($data['start_date']));
-        $balance = getDB()->fetchOne(
-            "SELECT Remaining FROM leavebalances 
-             WHERE EmployeeID = ? AND LeaveTypeID = ? AND Year = ?",
-            [$data['employee_id'], $data['leave_type_id'], $year]
+        $balance = dbFetchOne(\r
+            "SELECT Remaining FROM LeaveBalances \r
+             WHERE EmployeeID = ? AND LeaveTypeID = ? AND Year = ?",\r
+            [$data['employee_id'], $data['leave_type_id'], $year]\r
         );
         
         if ($balance && $balance['Remaining'] < $daysRequested) {
             throw new Exception('Insufficient leave balance');
         }
         
-        $query = "INSERT INTO leaverequests 
+        $query = "INSERT INTO LeaveRequests \r
                   (EmployeeID, LeaveTypeID, StartDate, EndDate, DaysRequested, Status, Comments)
                   VALUES (?, ?, ?, ?, ?, 'Pending', ?)";
         
-        $leaveRequestId = getDB()->insert($query, [
+        $leaveRequestId = dbInsert($query, [
             $data['employee_id'],
             $data['leave_type_id'],
             $data['start_date'],
@@ -420,10 +438,10 @@ function getLeaveRequestsHR() {
     $status = $_GET['status'] ?? null;
     
     try {
-        $query = "SELECT lr.*, e.FirstName, e.LastName, lt.LeaveTypeName
-                  FROM leaverequests lr
-                  JOIN employees e ON lr.EmployeeID = e.EmployeeID
-                  JOIN leavetypes lt ON lr.LeaveTypeID = lt.LeaveTypeID
+        $query = "SELECT lr.*, e.FirstName, e.LastName, lt.LeaveTypeName\r
+                  FROM LeaveRequests lr\r
+                  JOIN Employees e ON lr.EmployeeID = e.EmployeeID\r
+                  JOIN LeaveTypes lt ON lr.LeaveTypeID = lt.LeaveTypeID\r
                   WHERE 1=1";
         
         $params = [];
@@ -439,7 +457,7 @@ function getLeaveRequestsHR() {
         
         $query .= " ORDER BY lr.RequestDate DESC";
         
-        $requests = getDB()->fetchAll($query, $params);
+        $requests = dbFetchAll($query, $params);
         jsonResponse(['success' => true, 'data' => $requests]);
     } catch (Exception $e) {
         throw $e;
@@ -462,9 +480,9 @@ function approveLeaveHR() {
         getDB()->beginTransaction();
         
         // Get leave request details
-        $leave = getDB()->fetchOne(
-            "SELECT * FROM leaverequests WHERE LeaveRequestID = ?",
-            [$leaveRequestId]
+        $leave = dbFetchOne(\r
+            "SELECT * FROM LeaveRequests WHERE LeaveRequestID = ?",\r
+            [$leaveRequestId]\r
         );
         
         if (!$leave) {
@@ -472,18 +490,18 @@ function approveLeaveHR() {
         }
         
         // Update leave request
-        getDB()->update(
-            "UPDATE leaverequests SET Status = 'Approved', ApprovedBy = ? WHERE LeaveRequestID = ?",
-            [$_SESSION['user_id'] ?? null, $leaveRequestId]
+        dbUpdate(\r
+            "UPDATE LeaveRequests SET Status = 'Approved', ApprovedBy = ? WHERE LeaveRequestID = ?",\r
+            [$_SESSION['user_id'] ?? null, $leaveRequestId]\r
         );
         
         // Update leave balance
         $year = date('Y', strtotime($leave['StartDate']));
-        getDB()->update(
-            "UPDATE leavebalances SET Taken = Taken + ?, Remaining = Remaining - ? 
-             WHERE EmployeeID = ? AND LeaveTypeID = ? AND Year = ?",
-            [$leave['DaysRequested'], $leave['DaysRequested'], 
-             $leave['EmployeeID'], $leave['LeaveTypeID'], $year]
+        dbUpdate(\r
+            "UPDATE LeaveBalances SET Taken = Taken + ?, Remaining = Remaining - ? \r
+             WHERE EmployeeID = ? AND LeaveTypeID = ? AND Year = ?",\r
+            [$leave['DaysRequested'], $leave['DaysRequested'], \r
+             $leave['EmployeeID'], $leave['LeaveTypeID'], $year]\r
         );
         
         getDB()->commit();
@@ -509,9 +527,9 @@ function rejectLeaveHR() {
             throw new Exception('Leave request ID required');
         }
         
-        getDB()->update(
-            "UPDATE leaverequests SET Status = 'Rejected' WHERE LeaveRequestID = ?",
-            [$leaveRequestId]
+        dbUpdate(\r
+            "UPDATE LeaveRequests SET Status = 'Rejected' WHERE LeaveRequestID = ?",\r
+            [$leaveRequestId]\r
         );
         
         logInfo("Leave rejected", ['leave_request_id' => $leaveRequestId]);
@@ -530,12 +548,12 @@ function getLeaveBalanceHR() {
             throw new Exception('Employee ID required');
         }
         
-        $balances = getDB()->fetchAll(
-            "SELECT lb.*, lt.LeaveTypeName FROM leavebalances lb
-             JOIN leavetypes lt ON lb.LeaveTypeID = lt.LeaveTypeID
-             WHERE lb.EmployeeID = ? AND lb.Year = ?
-             ORDER BY lt.LeaveTypeName",
-            [$employeeId, $year]
+        $balances = dbFetchAll(\r
+            "SELECT lb.*, lt.LeaveTypeName FROM LeaveBalances lb\r
+             JOIN LeaveTypes lt ON lb.LeaveTypeID = lt.LeaveTypeID\r
+             WHERE lb.EmployeeID = ? AND lb.Year = ?\r
+             ORDER BY lt.LeaveTypeName",\r
+            [$employeeId, $year]\r
         );
         
         jsonResponse(['success' => true, 'data' => $balances]);
@@ -563,19 +581,19 @@ function processPayrollHR() {
         getDB()->beginTransaction();
         
         // Get all active employees
-        $employees = getDB()->fetchAll(
-            "SELECT EmployeeID, HourlyRate FROM employees WHERE Status = 'Active'"
+        $employees = dbFetchAll(\r
+            "SELECT EmployeeID, HourlyRate FROM Employees WHERE Status = 'Active'"\r
         );
         
         $processedCount = 0;
         foreach ($employees as $emp) {
             // Call stored procedure: GeneratePayroll
             try {
-                getDB()->callProcedure('GeneratePayroll', [
-                    $emp['EmployeeID'],
-                    $data['pay_period_start'],
-                    $data['pay_period_end'],
-                    $data['deductions'] ?? 0
+                dbExecute("CALL GeneratePayroll(?, ?, ?, ?)", [\r
+                    $emp['EmployeeID'],\r
+                    $data['pay_period_start'],\r
+                    $data['pay_period_end'],\r
+                    $data['deductions'] ?? 0\r
                 ]);
                 $processedCount++;
             } catch (Exception $e) {
@@ -585,11 +603,22 @@ function processPayrollHR() {
         
         getDB()->commit();
         
-        logInfo("Payroll processed", ['period_start' => $data['pay_period_start'], 'employees' => $processedCount]);
+        // Post GL accruals for generated payroll rows in this period to align with Accounting
+        $rows = dbFetchAll(
+            "SELECT PayrollID FROM Payroll WHERE PayPeriodStart = ? AND PayPeriodEnd = ? AND Status IN ('Pending','Draft')",
+            [$data['pay_period_start'], $data['pay_period_end']]
+        );
+        $accrued = 0;
+        foreach ($rows as $r) {
+            try { postPayrollAccrual($r['PayrollID']); $accrued++; } catch (Exception $e) { logError('Payroll accrual post failed', ['payroll_id' => $r['PayrollID'], 'error' => $e->getMessage()]); }
+        }
+        
+        logInfo("Payroll processed", ['period_start' => $data['pay_period_start'], 'employees' => $processedCount, 'accruals_posted' => $accrued]);
         jsonResponse([
             'success' => true, 
-            'message' => "Payroll processed for {$processedCount} employees",
-            'processed_count' => $processedCount
+            'message' => "Payroll processed for {$processedCount} employees; accruals posted: {$accrued}",
+            'processed_count' => $processedCount,
+            'accruals_posted' => $accrued
         ]);
     } catch (Exception $e) {
         getDB()->rollback();
@@ -604,8 +633,8 @@ function getPayrollRecordsHR() {
     $endDate = $_GET['end_date'] ?? null;
     
     try {
-        $query = "SELECT p.*, e.FirstName, e.LastName FROM payroll p
-                  JOIN employees e ON p.EmployeeID = e.EmployeeID
+        $query = "SELECT p.*, e.FirstName, e.LastName FROM Payroll p\r
+                  JOIN Employees e ON p.EmployeeID = e.EmployeeID\r
                   WHERE 1=1";
         
         $params = [];
@@ -625,7 +654,7 @@ function getPayrollRecordsHR() {
         
         $query .= " ORDER BY p.PayPeriodEnd DESC";
         
-        $records = getDB()->fetchAll($query, $params);
+        $records = dbFetchAll($query, $params);
         jsonResponse(['success' => true, 'data' => $records]);
     } catch (Exception $e) {
         throw $e;
@@ -640,8 +669,8 @@ function getEmployeePayrollHR() {
             throw new Exception('Employee ID required');
         }
         
-        $payroll = getDB()->fetchAll(
-            "SELECT * FROM payroll WHERE EmployeeID = ? ORDER BY PayPeriodEnd DESC",
+        $payroll = dbFetchAll(
+            "SELECT * FROM Payroll WHERE EmployeeID = ? ORDER BY PayPeriodEnd DESC",
             [$employeeId]
         );
         
@@ -649,6 +678,103 @@ function getEmployeePayrollHR() {
     } catch (Exception $e) {
         throw $e;
     }
+}
+
+// ===== Payroll CRUD endpoints =====
+function createPayrollHR() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        throw new Exception('Method not allowed');
+    }
+    $data = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+    $required = ['employee_id','pay_date','hours_worked','gross_pay','deductions'];
+    foreach ($required as $f) { if (!isset($data[$f])) throw new Exception("Missing field: {$f}"); }
+    $employeeId = (int)$data['employee_id'];
+    $payDate = $data['pay_date'];
+    $start = $data['pay_period_start'] ?? $payDate;
+    $end = $data['pay_period_end'] ?? $payDate;
+    $hours = (float)$data['hours_worked'];
+    $gross = (float)$data['gross_pay'];
+    $ded = (float)$data['deductions'];
+    $bonus = (float)($data['bonuses'] ?? 0);
+    $net = $gross - $ded + $bonus;
+    $pid = dbInsert(
+        "INSERT INTO Payroll (EmployeeID, PayPeriodStart, PayPeriodEnd, HoursWorked, GrossPay, Deductions, Bonuses, NetPay, Status, PaymentDate)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NULL)",
+        [$employeeId, $start, $end, $hours, $gross, $ded, $bonus, $net]
+    );
+    jsonResponse(['success'=>true,'message'=>'Payroll created','payroll_id'=>$pid]);
+}
+
+function updatePayrollHR() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        throw new Exception('Method not allowed');
+    }
+    $data = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+    $pid = (int)($data['payroll_id'] ?? 0);
+    if (!$pid) throw new Exception('payroll_id required');
+    $row = dbFetchOne("SELECT * FROM Payroll WHERE PayrollID = ?", [$pid]);
+    if (!$row) throw new Exception('Payroll not found');
+    $hours = isset($data['hours_worked']) ? (float)$data['hours_worked'] : (float)$row['HoursWorked'];
+    $gross = isset($data['gross_pay']) ? (float)$data['gross_pay'] : (float)$row['GrossPay'];
+    $ded = isset($data['deductions']) ? (float)$data['deductions'] : (float)$row['Deductions'];
+    $bonus = isset($data['bonuses']) ? (float)$data['bonuses'] : (float)$row['Bonuses'];
+    $net = $gross - $ded + $bonus;
+    dbUpdate("UPDATE Payroll SET HoursWorked = ?, GrossPay = ?, Deductions = ?, Bonuses = ?, NetPay = ? WHERE PayrollID = ?",
+        [$hours, $gross, $ded, $bonus, $net, $pid]);
+    jsonResponse(['success'=>true,'message'=>'Payroll updated']);
+}
+
+function deletePayrollHR() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        throw new Exception('Method not allowed');
+    }
+    $data = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+    $pid = (int)($data['payroll_id'] ?? 0);
+    if (!$pid) throw new Exception('payroll_id required');
+    dbUpdate("UPDATE Payroll SET Status = 'Voided' WHERE PayrollID = ?", [$pid]);
+    jsonResponse(['success'=>true,'message'=>'Payroll voided']);
+}
+
+function searchEmployeesHR() {
+    $q = trim($_GET['q'] ?? '');
+    $limit = (int)($_GET['limit'] ?? 10);
+    if ($limit <= 0 || $limit > 50) { $limit = 10; }
+    if ($q === '') { jsonResponse(['success'=>true,'data'=>[]]); return; }
+    $like = '%' . $q . '%';
+    $rows = dbFetchAll(
+        "SELECT e.EmployeeID, e.FirstName, e.LastName, e.Email, d.DepartmentName, s.StoreName
+         FROM Employees e
+         LEFT JOIN Departments d ON e.DepartmentID = d.DepartmentID
+         LEFT JOIN Stores s ON e.StoreID = s.StoreID
+         WHERE e.FirstName LIKE ? OR e.LastName LIKE ? OR e.Email LIKE ?
+         ORDER BY e.FirstName, e.LastName LIMIT ?",
+        [$like, $like, $like, $limit]
+    );
+    jsonResponse(['success'=>true,'data'=>$rows]);
+}
+
+?>
+// ============================================
+// PAYROLL PAYMENT FUNCTION
+// ============================================
+function payPayrollHR() {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+        throw new Exception('Method not allowed');
+    }
+    $data = json_decode(file_get_contents('php://input'), true) ?? $_POST;
+    $ids = $data['payroll_ids'] ?? null;
+    if (!$ids) {
+        $id = $data['payroll_id'] ?? null;
+        if ($id) { $ids = [$id]; }
+    }
+    if (!$ids || !is_array($ids)) {
+        throw new Exception('payroll_ids (array) or payroll_id required');
+    }
+    $paid = 0; $errors = [];
+    foreach ($ids as $pid) {
+        try { processPayroll($pid); $paid++; } catch (Exception $e) { $errors[] = ['payroll_id' => $pid, 'error' => $e->getMessage()]; }
+    }
+    jsonResponse(['success' => true, 'message' => "Payroll paid: {$paid}", 'paid' => $paid, 'errors' => $errors]);
 }
 
 ?>

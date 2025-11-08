@@ -1,41 +1,42 @@
 <?php
-// orderfulfillment.php - VIEW ONLY MODE + Submit OrderedDate
-require_once 'Connection.php';
+session_start();
+if (!isset($_SESSION['user_id'])) { header('Location: /ShoeRetailErp/login.php'); exit; }
+require_once '../../config/database.php';
+require_once '../../includes/core_functions.php';
 
 // Check if viewing specific order
 $viewing_order = null;
 $batch_number = isset($_GET['batch']) ? $_GET['batch'] : null;
 
 if ($batch_number) {
-    // Fetch specific order details
-    $stmt = $conn->prepare("SELECT * FROM v_PurchaseOrderDetails WHERE `Batch#` = ?");
-    $stmt->bind_param("s", $batch_number);
-    $stmt->execute();
-    $result = $stmt->get_result();
-   
-    if ($result && $result->num_rows > 0) {
-        $viewing_order = $result->fetch_assoc();
-    }
-    $stmt->close();
+    $viewing_order = dbFetchOne("SELECT * FROM v_PurchaseOrderDetails WHERE `Batch#` = ?", [$batch_number]);
 }
 
 // If no batch parameter or order not found, redirect back
 if (!$viewing_order) {
-    header('Location: ./index.php');
+    echo "<script>
+            document.addEventListener('DOMContentLoaded', function() {
+                showModal('Error', 'Order not found. Redirecting to procurement page...', 'error', function() {
+                    window.location.href = './index.php?tab=fulfillmentTab';
+                });
+            });
+          </script>";
     exit;
 }
 
 // Handle Submit button click
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_order'])) {
-    $current_date = date('Y-m-d H:i:s'); // current timestamp
-    $update_stmt = $conn->prepare("UPDATE purchaseorders SET OrderedDate = ? WHERE BatchNo = ?");
-    $update_stmt->bind_param("ss", $current_date, $batch_number);
-    $update_stmt->execute();
-    $update_stmt->close();
-
-    // Redirect back after update
-    header('Location: ./index.php?submitted=1');
-    exit;
+    try {
+        $current_date = date('Y-m-d H:i:s');
+        dbUpdate("UPDATE PurchaseOrders SET OrderedDate = ? WHERE BatchNo = ?", [$current_date, $batch_number]);
+        logInfo('Purchase order submitted for ordering', ['batch' => $batch_number, 'date' => $current_date]);
+        header('Location: ./index.php?submitted=1');
+        exit;
+    } catch (Exception $e) {
+        logError('Failed to submit purchase order', ['error' => $e->getMessage(), 'batch' => $batch_number]);
+        $errorMsg = addslashes($e->getMessage());
+        echo "<script>document.addEventListener('DOMContentLoaded', function() { showModal('Error', 'Error submitting order: {$errorMsg}', 'error'); });</script>";
+    }
 }
 
 // Get values from viewing order
@@ -49,6 +50,7 @@ $total_val = $viewing_order['Total'];
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>View Purchase Order - <?= htmlspecialchars($viewing_order['Batch#']) ?></title>
+  <link rel="stylesheet" href="../css/style.css">
   <link rel="stylesheet" href="./css/orderfulfillment.css">
   <style>
     body { font-family: Arial, sans-serif; background: #f4f4f4; margin: 0; padding: 20px; }
@@ -70,6 +72,8 @@ $total_val = $viewing_order['Total'];
   </style>
 </head>
 <body>
+<?php include '../includes/navbar.php'; ?>
+<?php include '../includes/modal.php'; ?>
 
   <div class="form-container">
     <h2>Purchase Order Details - <?= htmlspecialchars($viewing_order['Batch#']) ?></h2>
@@ -176,4 +180,3 @@ $total_val = $viewing_order['Total'];
 
 </body>
 </html>
-<?php $conn->close(); ?>

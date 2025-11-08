@@ -1,25 +1,26 @@
 <?php
-include './Connection.php';
+session_start();
+if (!isset($_SESSION['user_id'])) { header('Location: /ShoeRetailErp/login.php'); exit; }
+require_once '../../config/database.php';
+require_once '../../includes/core_functions.php';
 
 // Get batch from URL (passed from index.php)
 $batch = isset($_GET['batch']) ? htmlspecialchars($_GET['batch']) : '';
 $order_data = null;
 
 if ($batch) {
-    // Fetch data from v_PurchaseOrderDetails for the batch
-    $sql = "SELECT * FROM v_PurchaseOrderDetails WHERE `Batch#` = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("s", $batch);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    if ($result->num_rows > 0) {
-        $order_data = $result->fetch_assoc();
-    }
-    $stmt->close();
+    $order_data = dbFetchOne("SELECT * FROM v_PurchaseOrderDetails WHERE `Batch#` = ?", [$batch]);
 }
 
 if (!$order_data) {
-    die("Error: Invalid or missing batch. Please return to <a href='./index.php'>./index.php</a>.");
+    echo "<script>
+            document.addEventListener('DOMContentLoaded', function() {
+                showModal('Error', 'Invalid or missing batch number. Redirecting to procurement page...', 'error', function() {
+                    window.location.href = './index.php?tab=receivingTab';
+                });
+            });
+          </script>";
+    exit;
 }
 
 // Helper function for POST data
@@ -58,6 +59,9 @@ $today = date('Y-m-d');
   <script src="./js/qualitychecking.js"></script>
 </head>
 <body>
+<?php include '../includes/navbar.php'; ?>
+<?php include '../includes/modal.php'; ?>
+<link rel="stylesheet" href="../css/style.css">
 
 <div class="form-container">
   <h2>Receiving Order for Batch: <?= htmlspecialchars($batch) ?></h2>
@@ -193,6 +197,3 @@ $today = date('Y-m-d');
 
 </body>
 </html>
-<?php
-$conn->close();
-?>
