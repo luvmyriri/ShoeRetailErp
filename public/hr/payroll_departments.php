@@ -1,4 +1,22 @@
-<?php $branch = $_GET['branch'] ?? 'Main Branch'; ?>
+<?php
+session_start();
+
+if (!isset($_SESSION['user_id'])) {
+    header('Location: /ShoeRetailErp/login.php');
+    exit;
+}
+
+// Role-based access control
+$userRole = $_SESSION['role'] ?? '';
+$allowedRoles = ['Admin', 'Manager', 'HR'];
+
+if (!in_array($userRole, $allowedRoles)) {
+    header('Location: /ShoeRetailErp/public/index.php?error=access_denied');
+    exit;
+}
+
+$branch = $_GET['branch'] ?? 'Main Branch';
+?>
 
 <div class="d-flex align-items-center justify-content-between mb-4">
   <div>

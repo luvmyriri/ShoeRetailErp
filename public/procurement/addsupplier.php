@@ -1,71 +1,68 @@
 <?php
-include './Connection.php';
+session_start();
+if (!isset($_SESSION['user_id'])) { header('Location: /ShoeRetailErp/login.php'); exit; }
+require_once '../../config/database.php';
+require_once '../../includes/core_functions.php';
 
-// ✅ Handle Form Submit
+$error = '';
+$errorField = '';
+
+// Handle Form Submit
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-
-    $supplier_name  = trim($_POST['supplier_name']);
-    $contact_person = trim($_POST['contact_person']);
-    $email          = trim($_POST['email']);
-    $contact_number = trim($_POST['contact_number']);
-    $address        = trim($_POST['address']);
-    $payment_term   = trim($_POST['payment_term']);
-
-    $insert_sql = "INSERT INTO suppliers 
-        (SupplierName, ContactName, Email, Phone, Address, PaymentTerms, Status)
-        VALUES 
-        ('$supplier_name', '$contact_person', '$email', '$contact_number', '$address', '$payment_term', 'Active')";
+    $supplier_name  = trim($_POST['supplier_name'] ?? '');
+    $contact_person = trim($_POST['contact_person'] ?? '');
+    $email          = trim($_POST['email'] ?? '');
+    $contact_number = trim($_POST['contact_number'] ?? '');
+    $address        = trim($_POST['address'] ?? '');
+    $payment_term   = trim($_POST['payment_term'] ?? '');
 
     try {
-        if ($conn->query($insert_sql)) {
-            echo "<script>
-                    alert('✅ Supplier added successfully!');
-                    window.location.href = './index.php';
-                  </script>";
-            exit();
-        }
-    } catch (mysqli_sql_exception $e) {
-
-        // ✅ Remove previous errors/highlights
-        echo "<script>
-                document.querySelectorAll('input').forEach(el => el.classList.remove('input-error'));
-              </script>";
-
-        if ($e->getCode() == 1062) {
-
-            // ✅ Duplicate Email
-            if (str_contains($e->getMessage(), 'Email')) {
-                echo "<script>
-                    const field = document.getElementById('email');
-                    field.classList.add('input-error');
-                    field.focus();
-                    alert('❌ Email already exists!');
-                </script>";
-            }
-
-            // ✅ Duplicate Phone
-            elseif (str_contains($e->getMessage(), 'Phone')) {
-                echo "<script>
-                    const field = document.getElementById('contact_number');
-                    field.classList.add('input-error');
-                    field.focus();
-                    alert('❌ Phone number already exists!');
-                </script>";
+        // Check for duplicates
+        $existing = dbFetchOne(
+            "SELECT SupplierID FROM Suppliers WHERE Email = ? OR Phone = ?",
+            [$email, $contact_number]
+        );
+        
+        if ($existing) {
+            // Determine which field is duplicate
+            $emailCheck = dbFetchOne("SELECT SupplierID FROM Suppliers WHERE Email = ?", [$email]);
+            if ($emailCheck) {
+                $error = 'Email already exists!';
+                $errorField = 'email';
+            } else {
+                $error = 'Phone number already exists!';
+                $errorField = 'contact_number';
             }
         } else {
-            echo "<script>alert('❌ Database Error: " . addslashes($e->getMessage()) . "');</script>";
+            $supplierId = dbInsert(
+                "INSERT INTO Suppliers (SupplierName, ContactName, Email, Phone, Address, PaymentTerms, Status) 
+                 VALUES (?, ?, ?, ?, ?, ?, 'Active')",
+                [$supplier_name, $contact_person, $email, $contact_number, $address, $payment_term]
+            );
+            
+            logInfo('Supplier added', ['supplier_id' => $supplierId, 'name' => $supplier_name]);
+            echo "<script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        showModal('Success', 'Supplier added successfully!', 'success', function() {
+                            window.location.href = './index.php';
+                        });
+                    });
+                  </script>";
+            exit;
         }
+    } catch (Exception $e) {
+        logError('Failed to add supplier', ['error' => $e->getMessage()]);
+        $error = 'Database Error: ' . $e->getMessage();
     }
 }
-
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Add Supplier</title>
-
+<title>Add Supplier - Shoe Retail ERP</title>
+<link rel="stylesheet" href="../css/style.css">
 <link rel="stylesheet" href="./css/addsupplier.css">
 
 <style>
@@ -99,43 +96,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 </head>
 <body>
+<?php include '../includes/navbar.php'; ?>
+<?php include '../includes/modal.php'; ?>
 
 <div class="form-container">
      <h2>Add Supplier</h2>
     <hr style="margin:18px 0;border:none;border-top:1px solid #eee;" />
 
-    <form method="POST" id="addSupplierForm">
+    <?php if ($error): ?>
+        <div class="alert alert-danger" style="margin-bottom: 20px; padding: 10px; background: #fee; border: 1px solid #fcc; border-radius: 5px; color: #c00;">
+            <?= htmlspecialchars($error) ?>
+        </div>
+    <?php endif; ?>
 
+    <form method="POST" id="addSupplierForm">
         <div class="grid" style="grid-template-columns: 1fr 1fr;">
             <div>
                 <label>Supplier Name</label>
-                <input type="text" name="supplier_name" required>
+                <input type="text" name="supplier_name" value="<?= htmlspecialchars($_POST['supplier_name'] ?? '') ?>" required>
             </div>
             <div>
                 <label>Contact Person</label>
-                <input type="text" name="contact_person" required>
+                <input type="text" name="contact_person" value="<?= htmlspecialchars($_POST['contact_person'] ?? '') ?>" required>
             </div>
         </div>
 
         <div class="grid">
             <div>
                 <label>Email</label>
-                <input type="email" id="email" name="email" required>
+                <input type="email" id="email" name="email" value="<?= htmlspecialchars($_POST['email'] ?? '') ?>" class="<?= $errorField === 'email' ? 'input-error' : '' ?>" required>
             </div>
             <div>
                 <label>Contact Number</label>
-                <input type="text" id="contact_number" name="contact_number" required>
+                <input type="text" id="contact_number" name="contact_number" value="<?= htmlspecialchars($_POST['contact_number'] ?? '') ?>" class="<?= $errorField === 'contact_number' ? 'input-error' : '' ?>" required>
             </div>
             <div>
                 <label>Address</label>
-                <input type="text" name="address" required>
+                <input type="text" name="address" value="<?= htmlspecialchars($_POST['address'] ?? '') ?>" required>
             </div>
         </div>
 
         <div class="grid" style="grid-template-columns: 1fr;">
             <div>
                 <label>Payment Term</label>
-                <input type="text" name="payment_term" required>
+                <input type="text" name="payment_term" value="<?= htmlspecialchars($_POST['payment_term'] ?? '') ?>" required>
             </div>
         </div>
 
@@ -189,7 +193,7 @@ function validateForm() {
     });
 
     if (!isValid) {
-        alert("⚠️ Please fill out all required fields before submitting.");
+        showModal('Warning', 'Please fill out all required fields before submitting.', 'warning');
         return false;
     }
     
@@ -214,5 +218,3 @@ function submitForm() {
 
 </body>
 </html>
-
-<?php $conn->close(); ?>

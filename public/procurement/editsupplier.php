@@ -1,51 +1,51 @@
 <?php
-include './Connection.php';
+session_start();
+if (!isset($_SESSION['user_id'])) { header('Location: /ShoeRetailErp/login.php'); exit; }
+require_once '../../config/database.php';
+require_once '../../includes/core_functions.php';
 
-// ✅ Get Supplier ID
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     die("Invalid supplier ID");
 }
 
 $supplierID = intval($_GET['id']);
 
-// ✅ Fetch Supplier Data
-$sql = "SELECT * FROM suppliers WHERE SupplierID = $supplierID LIMIT 1";
-$result = $conn->query($sql);
+// Fetch Supplier Data
+$supplier = dbFetchOne("SELECT * FROM Suppliers WHERE SupplierID = ?", [$supplierID]);
 
-if (!$result || $result->num_rows == 0) {
+if (!$supplier) {
     die("Supplier not found!");
 }
 
-$supplier = $result->fetch_assoc();
-
-// ✅ UPDATE Supplier (POST submission)
+// UPDATE Supplier (POST submission)
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $supplierName = $_POST['supplier_name'];
-    $contactPerson = $_POST['contact_person'];
-    $email = $_POST['email'];
-    $contactNumber = $_POST['contact_number'];
-    $address = $_POST['address'];
-    $payment = $_POST['payment'];
-    $status = $_POST['status'];
+    try {
+        $supplierName = trim($_POST['supplier_name'] ?? '');
+        $contactPerson = trim($_POST['contact_person'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $contactNumber = trim($_POST['contact_number'] ?? '');
+        $address = trim($_POST['address'] ?? '');
+        $payment = trim($_POST['payment'] ?? '');
+        $status = $_POST['status'] ?? 'Active';
 
-    $update_sql = "UPDATE suppliers SET 
-                    SupplierName = '$supplierName',
-                    ContactName = '$contactPerson',
-                    Email = '$email',
-                    Phone = '$contactNumber',
-                    Address = '$address',
-                    PaymentTerms = '$payment',
-                    Status = '$status'
-                WHERE SupplierID = $supplierID";
-
-    if ($conn->query($update_sql)) {
+        dbUpdate(
+            "UPDATE Suppliers SET SupplierName = ?, ContactName = ?, Email = ?, Phone = ?, Address = ?, PaymentTerms = ?, Status = ? WHERE SupplierID = ?",
+            [$supplierName, $contactPerson, $email, $contactNumber, $address, $payment, $status, $supplierID]
+        );
+        
+        logInfo('Supplier updated', ['supplier_id' => $supplierID, 'name' => $supplierName]);
         echo "<script>
-                alert('Supplier updated successfully!');
-                window.location.href = './index.php';
+                document.addEventListener('DOMContentLoaded', function() {
+                    showModal('Success', 'Supplier updated successfully!', 'success', function() {
+                        window.location.href = './index.php';
+                    });
+                });
               </script>";
-        exit();
-    } else {
-        echo "<script>alert('Error updating supplier!');</script>";
+        exit;
+    } catch (Exception $e) {
+        logError('Failed to update supplier', ['error' => $e->getMessage(), 'supplier_id' => $supplierID]);
+        $errorMsg = addslashes($e->getMessage());
+        echo "<script>document.addEventListener('DOMContentLoaded', function() { showModal('Error', 'Error updating supplier: {$errorMsg}', 'error'); });</script>";
     }
 }
 ?>
@@ -54,10 +54,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Edit Supplier</title>
+<title>Edit Supplier - Shoe Retail ERP</title>
+<link rel="stylesheet" href="../css/style.css">
 <link rel="stylesheet" href="./css/addsupplier.css">
 </head>
 <body>
+<?php include '../includes/navbar.php'; ?>
+<?php include '../includes/modal.php'; ?>
 
 <div class="form-container">
      <h2>Edit Supplier Info</h2>
@@ -138,5 +141,3 @@ function closeModal() {
 
 </body>
 </html>
-
-<?php $conn->close(); ?>

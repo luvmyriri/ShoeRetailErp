@@ -24,10 +24,10 @@ $branchID = isset($_GET['branch_id']) ? intval($_GET['branch_id']) : 0;
 if ($branchID <= 0) die("Invalid branch ID.");
 
 // Get branch name
-$branch = dbFetchOne("SELECT BranchName FROM branches WHERE BranchID = ?", [$branchID]);
+$branch = dbFetchOne("SELECT BranchName FROM Branches WHERE BranchID = ?", [$branchID]);
 
 // Get departments in that branch
-$query = "SELECT DepartmentID, DepartmentName FROM departments WHERE BranchID = ? ORDER BY DepartmentName";
+$query = "SELECT DepartmentID, DepartmentName FROM Departments WHERE BranchID = ? ORDER BY DepartmentName";
 $departments = dbFetchAll($query, [$branchID]);
 ?>
 <!DOCTYPE html>
@@ -35,90 +35,86 @@ $departments = dbFetchAll($query, [$branchID]);
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Departments - <?= htmlspecialchars($branch['BranchName']) ?></title>
+<title>Departments - <?= htmlspecialchars($branch['BranchName']) ?> - Shoe Retail ERP</title>
 <link rel="stylesheet" href="../css/style.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-body {
-  font-family: "Segoe UI", Arial, sans-serif;
-  background: #f4f4f8;
-  margin: 0;
-  color: #333;
-}
-main {
-  max-width: 900px;
-  margin: 40px auto;
-  background: #fff;
-  padding: 30px;
-  border-radius: 10px;
-  box-shadow: 0 1px 6px rgba(0,0,0,0.05);
-}
-h1 {
-  color: #333;
-  margin-bottom: 25px;
-}
 .dept-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 15px;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
 }
 .dept-card {
-  display: block;
-  background: #f9f9ff;
-  padding: 20px;
-  border-radius: 10px;
+  background: white;
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  text-align: center;
+  transition: all var(--transition-base);
+  cursor: pointer;
   text-decoration: none;
-  color: #333;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
-  transition: all 0.2s ease-in-out;
+  color: var(--gray-800);
+  box-shadow: var(--shadow-md);
 }
 .dept-card:hover {
-  background: #6b46c1;
-  color: #fff;
-  transform: translateY(-3px);
-  box-shadow: 0 4px 10px rgba(107,70,193,0.3);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+  background: var(--primary-color);
+  color: white;
 }
 .dept-card i {
-  font-size: 30px;
-  margin-bottom: 10px;
-  color: #6b46c1;
-  transition: color 0.2s;
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  color: var(--primary-color);
+  transition: color var(--transition-base);
 }
 .dept-card:hover i {
-  color: #fff;
+  color: white;
 }
-.back-link {
-  display: inline-block;
-  margin-bottom: 20px;
-  text-decoration: none;
-  background: #eaeaea;
-  color: #333;
-  padding: 6px 12px;
-  border-radius: 6px;
-}
-.back-link:hover {
-  background: #ddd;
+.dept-card h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
 }
 </style>
 </head>
 <body>
 <?php include '../includes/navbar.php'; ?>
+<?php include '../includes/modal.php'; ?>
 
-<main>
-  <a href="timesheets.php" class="back-link">&larr; Back to Branches</a>
-  <h1><?= htmlspecialchars($branch['BranchName']) ?> - Departments</h1>
+<div class="main-wrapper" style="margin-left: 0;">
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-header-title">
+        <h1><?= htmlspecialchars($branch['BranchName']) ?> - Departments</h1>
+        <div class="page-header-breadcrumb">
+          <a href="/ShoeRetailErp/public/index.php">Home</a> / 
+          <a href="index.php">HR</a> / 
+          <a href="timesheets.php">Branches</a> / 
+          Departments
+        </div>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-secondary" onclick="window.location.href='timesheets.php'"><i class="fas fa-arrow-left"></i> Back to Branches</button>
+      </div>
+    </div>
 
-  <div class="dept-grid">
-    <?php if (!empty($departments)): ?>
-      <?php foreach ($departments as $d): ?>
-        <a class="dept-card" href="employees.php?department_id=<?= $d['DepartmentID'] ?>">
-          <h3><?= htmlspecialchars($d['DepartmentName']) ?></h3>
-        </a>
-      <?php endforeach; ?>
-    <?php else: ?>
-      <p>No departments found in this branch.</p>
-    <?php endif; ?>
-  </div>
-</main>
+    <div class="dept-grid">
+      <?php if (!empty($departments)): ?>
+        <?php foreach ($departments as $d): ?>
+          <a class="dept-card" href="employees.php?department_id=<?= $d['DepartmentID'] ?>">
+            <i class="fas fa-building"></i>
+            <h3><?= htmlspecialchars($d['DepartmentName']) ?></h3>
+          </a>
+        <?php endforeach; ?>
+      <?php else: ?>
+        <div class="card" style="text-align: center; padding: 3rem;">
+          <i class="fas fa-folder-open" style="font-size: 3rem; color: var(--gray-400); margin-bottom: 1rem;"></i>
+          <p style="color: var(--gray-500);">No departments found in this branch.</p>
+        </div>
+      <?php endif; ?>
+    </div>
+  </main>
+</div>
 </body>
 </html>

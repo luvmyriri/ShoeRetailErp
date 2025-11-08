@@ -1,17 +1,21 @@
 ﻿
 
 <?php
-include './Connection.php';
-// ✅ FETCH RETURNS (Status = not yet)
-$returns_orders = [];
-$sqlReturns = "SELECT * FROM returns WHERE Status = 'not yet' ORDER BY ReturnID DESC";
-$resultReturns = $conn->query($sqlReturns);
+session_start();
+if (!isset($_SESSION['user_id'])) { header('Location: /ShoeRetailErp/login.php'); exit; }
 
-if ($resultReturns && $resultReturns->num_rows > 0) {
-    while ($row = $resultReturns->fetch_assoc()) {
-        $returns_orders[] = $row;
-    }
+// Role-based access control
+$userRole = $_SESSION['role'] ?? '';
+$allowedRoles = ['Admin', 'Manager', 'Procurement'];
+
+if (!in_array($userRole, $allowedRoles)) {
+    header('Location: /ShoeRetailErp/public/index.php?error=access_denied');
+    exit;
 }
+
+require_once '../../config/database.php';
+// ✅ FETCH RETURNS (Status = not yet)
+$returns_orders = dbFetchAll("SELECT * FROM returns WHERE Status = 'not yet' ORDER BY ReturnID DESC");
 
 // --- PAGINATION SETUP ---
 $records_per_page = 10; // Ilan ang gustong ipakita per page
@@ -22,11 +26,8 @@ $count_sql = "SELECT COUNT(DISTINCT `Batch#`) AS total_records
               FROM v_PurchaseOrderDetails 
               WHERE `Ordered Date` IS NULL 
               AND Status = 'Pending'";
-$count_result = $conn->query($count_sql);
-$total_records = 0;
-if ($count_result) {
-    $total_records = $count_result->fetch_assoc()['total_records'];
-}
+$count_row = dbFetchOne($count_sql);
+$total_records = (int)($count_row['total_records'] ?? 0);
 
 // ✅ Calculate pagination
 $total_pages = ceil($total_records / $records_per_page);
@@ -49,13 +50,7 @@ $sql = "SELECT
         ORDER BY MIN(`Order Date`) DESC
         LIMIT $records_per_page OFFSET $offset";
 
-$purchase_orders = [];
-$result = $conn->query($sql);
-if ($result && $result->num_rows > 0) {
-    while ($row = $result->fetch_assoc()) {
-        $purchase_orders[] = $row;
-    }
-}
+$purchase_orders = dbFetchAll($sql);
 
 
 // Calculate statistics (These will only count orders where Ordered Date is NULL)
@@ -63,19 +58,12 @@ $total_orders = $total_records; // Gamitin ang na-count na total records
 $total_spend = 0;
 // Kailangan mong i-calculate ang Total Spend sa lahat ng records (hindi lang sa current page)
 $spend_sql = "SELECT SUM(Total) AS total_spend FROM v_PurchaseOrderDetails WHERE `Ordered Date` IS NULL";
-$spend_result = $conn->query($spend_sql);
-if ($spend_result) {
-    $total_spend_row = $spend_result->fetch_assoc();
-    $total_spend = $total_spend_row['total_spend'] ?? 0;
-}
+$total_spend_row = dbFetchOne($spend_sql);
+$total_spend = (float)($total_spend_row['total_spend'] ?? 0);
 // Fetch unique suppliers count (from all orders, regardless of OrderedDate)
 $suppliers_sql = "SELECT COUNT(DISTINCT SupplierName) as supplier_count FROM v_PurchaseOrderDetails";
-$suppliers_result = $conn->query($suppliers_sql);
-$supplier_count = 0;
-if ($suppliers_result && $suppliers_result->num_rows > 0) {
-    $supplier_row = $suppliers_result->fetch_assoc();
-    $supplier_count = $supplier_row['supplier_count'] ?? 0;
-}
+$supplier_row = dbFetchOne($suppliers_sql);
+$supplier_count = (int)($supplier_row['supplier_count'] ?? 0);
 
 
 // --- NEW: Fetch summarized transaction history by BatchNo ---
@@ -105,37 +93,23 @@ $history_sql = "
 ";
 
 
-$history_result = $conn->query($history_sql);
+$history_transactions = dbFetchAll($history_sql);
 
-if ($history_result && $history_result->num_rows > 0) {
-    while ($row = $history_result->fetch_assoc()) {
-        $history_transactions[] = $row;
-    }
-}
-
-// ✅ Fetch Suppliers Data
-$suppliers_data = [];
-$supplier_sql = "SELECT * FROM suppliers 
+// Fetch Suppliers Data
+$supplier_sql = "SELECT * FROM Suppliers 
                  ORDER BY 
                  CASE 
                      WHEN Status = 'Active' THEN 0
                      ELSE 1
                  END,
                  SupplierName ASC";
-
-$supplier_result = $conn->query($supplier_sql);
-
-if ($supplier_result && $supplier_result->num_rows > 0) {
-    while ($row = $supplier_result->fetch_assoc()) {
-        $suppliers_data[] = $row;
-    }
-}
+$suppliers_data = dbFetchAll($supplier_sql);
 
 
 $goods_receipts = [];
 
 // ✅ Fetch ALL fields for later drilldown use
-$sql = "
+$sqlGoods = "
  SELECT 
     thp.BatchNo AS PONumber,
     CONCAT(thp.Brand, ' ', thp.Model) AS ProductName,
@@ -153,13 +127,7 @@ WHERE thp.ArrivalDate IS NOT NULL
 ORDER BY thp.ArrivalDate DESC
 ";
 
-$result = $conn->query($sql);
-
-if ($result && $result->num_rows > 0) {
-    while ($row = $result->fetch_assoc()) {
-        $goods_receipts[] = $row;
-    }
-}
+$goods_receipts = dbFetchAll($sqlGoods);
 
 // ✅ Unique BatchNo grouping for display
 $display_batches = [];
@@ -174,74 +142,61 @@ if (isset($_GET['return_id'])) {
     $return_id = intval($_GET['return_id']);
 
     // ✅ Get return item details
-    $sql = "SELECT * FROM returns WHERE ReturnID = ?";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("i", $return_id);
-    $stmt->execute();
-    $item = $stmt->get_result()->fetch_assoc();
+    $item = dbFetchOne("SELECT * FROM returns WHERE ReturnID = ?", [$return_id]);
 
     if (!$item) {
         exit("Return record not found!");
     }
 
     // ✅ Update returns table
-    $update_return = "UPDATE returns SET Status = 'returned' WHERE ReturnID = ?";
-    $stmtUR = $conn->prepare($update_return);
-    $stmtUR->bind_param("i", $return_id);
-    $stmtUR->execute();
+    dbUpdate("UPDATE returns SET Status = 'returned' WHERE ReturnID = ?", [$return_id]);
 
     // ✅ Get Purchase Order ID
-    $sqlPO = "SELECT PurchaseOrderID FROM purchaseorders WHERE BatchNo = ? LIMIT 1";
-    $stmtPO = $conn->prepare($sqlPO);
-    $stmtPO->bind_param("s", $item['BatchNo']);
-    $stmtPO->execute();
-    $po = $stmtPO->get_result()->fetch_assoc();
+    $po = dbFetchOne("SELECT PurchaseOrderID FROM purchaseorders WHERE BatchNo = ? LIMIT 1", [$item['BatchNo']]);
 
     if ($po) {
-        $poid = $po['PurchaseOrderID'];
-
-        // ✅ Set PO to PARTIAL (back to Receiving Orders queue)
-        $update_status = "UPDATE purchaseorders SET Status = 'Pending' WHERE PurchaseOrderID = ?";
-        $stmtUP = $conn->prepare($update_status);
-        $stmtUP->bind_param("i", $poid);
-        $stmtUP->execute();
-
-        // ✅ Reduce ReceivedQuantity in purchaseorderdetails
-        $sqlReduce = "UPDATE purchaseorderdetails pd 
-                      JOIN products p ON p.ProductID = pd.ProductID
-                      SET pd.ReceivedQuantity = pd.ReceivedQuantity - ?, 
-                          pd.ReceivedStatus = 'Pending'
-                      WHERE pd.PurchaseOrderID = ?
-                        AND p.Brand = ?
-                        AND p.Model = ?";
-        $stmtReduce = $conn->prepare($sqlReduce);
-        $stmtReduce->bind_param("iiss", 
-            $item['Qty'], 
-            $poid, 
-            $item['Brand'], 
-            $item['Model']
-        );
-        $stmtReduce->execute();
-
-        // ✅ Insert into transaction history again = back to QC
-        $insertTH = "INSERT INTO transaction_history_precurement
-                    (BatchNo, Brand, Model, Received, Passed, Failed, UnitCost, OrderedDate, ArrivalDate, Description)
-                    VALUES (?, ?, ?, ?, 0, ?, ?, CURDATE(), CURDATE(), 'Returned: Pending QC')";
-        $stmtTH = $conn->prepare($insertTH);
-        $stmtTH->bind_param("sssidd",
-            $item['BatchNo'],
-            $item['Brand'],
-            $item['Model'],
-            $item['Qty'],
-            $item['Qty'],
-            $item['Cost']
-        );
-        $stmtTH->execute();
+        try {
+            getDB()->beginTransaction();
+            $poid = $po['PurchaseOrderID'];
+            
+            // Set PO to PARTIAL (back to Receiving Orders queue)
+            dbUpdate("UPDATE PurchaseOrders SET Status = 'Pending' WHERE PurchaseOrderID = ?", [$poid]);
+            
+            // Reduce ReceivedQuantity in purchaseorderdetails
+            dbExecute(
+                "UPDATE PurchaseOrderDetails pd 
+                 JOIN Products p ON p.ProductID = pd.ProductID
+                 SET pd.ReceivedQuantity = pd.ReceivedQuantity - ?, 
+                     pd.ReceivedStatus = 'Pending'
+                 WHERE pd.PurchaseOrderID = ?
+                   AND p.Brand = ?
+                   AND p.Model = ?",
+                [$item['Qty'], $poid, $item['Brand'], $item['Model']]
+            );
+            
+            // Insert into transaction history again = back to QC
+            dbInsert(
+                "INSERT INTO transaction_history_precurement
+                 (BatchNo, Brand, Model, Received, Passed, Failed, UnitCost, OrderedDate, ArrivalDate, Description)
+                 VALUES (?, ?, ?, ?, 0, ?, ?, CURDATE(), CURDATE(), 'Returned: Pending QC')",
+                [$item['BatchNo'], $item['Brand'], $item['Model'], $item['Qty'], $item['Qty'], $item['Cost']]
+            );
+            
+            getDB()->commit();
+        } catch (Exception $e) {
+            getDB()->rollback();
+            $errorMsg = addslashes($e->getMessage());
+            echo "<script>document.addEventListener('DOMContentLoaded', function() { showModal('Error', 'Error processing return: {$errorMsg}', 'error', function() { history.back(); }); });</script>";
+            exit;
+        }
     }
 
     echo "<script>
-            alert('✅ Returned item successfully moved back to Receiving for QC!');
-            window.location.href='index.php?tab=receivingTab';
+            document.addEventListener('DOMContentLoaded', function() {
+                showModal('Success', 'Returned item successfully moved back to Receiving for QC!', 'success', function() {
+                    window.location.href='index.php?tab=receivingTab';
+                });
+            });
          </script>";
     exit;
 }
@@ -261,18 +216,10 @@ $sqlReceiving = "
         AND Status = 'Pending'
     ORDER BY `Order Date` DESC
 ";
-
-$resultReceiving = $conn->query($sqlReceiving);
-
-if ($resultReceiving && $resultReceiving->num_rows > 0) {
-    while ($row = $resultReceiving->fetch_assoc()) {
-        $receiving_orders[] = $row;
-    }
-}
+$receiving_orders = dbFetchAll($sqlReceiving);
 
 
-// ✅ Payment History - Only PAID
-$payment_history = [];
+// Payment History - Only PAID
 $sql_payments = "
     SELECT 
         thp.BatchNo AS PONumber,
@@ -281,88 +228,54 @@ $sql_payments = "
         SUM(ap.PaidAmount) AS Total,
         MAX(ap.PaymentDate) AS PaymentDate
     FROM transaction_history_precurement thp
-    LEFT JOIN purchaseorders po ON thp.PurchaseOrderID = po.PurchaseOrderID
-    LEFT JOIN suppliers s ON s.SupplierID = thp.SupplierID
-    LEFT JOIN suppliers s2 ON s2.SupplierID = po.SupplierID
-    LEFT JOIN accountspayable ap ON ap.PurchaseOrderID = thp.PurchaseOrderID
+    LEFT JOIN PurchaseOrders po ON thp.PurchaseOrderID = po.PurchaseOrderID
+    LEFT JOIN Suppliers s ON s.SupplierID = thp.SupplierID
+    LEFT JOIN Suppliers s2 ON s2.SupplierID = po.SupplierID
+    LEFT JOIN AccountsPayable ap ON ap.PurchaseOrderID = thp.PurchaseOrderID
     WHERE ap.PaymentStatus = 'Paid'
     GROUP BY thp.BatchNo
     ORDER BY MAX(ap.PaymentDate) DESC
 ";
+$payment_history = dbFetchAll($sql_payments);
 
-$result_payments = $conn->query($sql_payments);
-if ($result_payments && $result_payments->num_rows > 0) {
-    while ($row = $result_payments->fetch_assoc()) {
-        $payment_history[] = $row;
+
+// PROCESS RETURN (create new PO)
+if (isset($_GET['return_id']) && !isset($_GET['action'])) {
+    try {
+        $return_id = intval($_GET['return_id']);
+        $item = dbFetchOne("SELECT * FROM returns WHERE ReturnID = ? AND Status = 'not yet'", [$return_id]);
+        
+        if (!$item) exit("❌ Return item not found!");
+        
+        getDB()->beginTransaction();
+        
+        dbUpdate("UPDATE returns SET Status='returned' WHERE ReturnID=?", [$return_id]);
+        $newBatch = "BATCH-" . strtoupper(uniqid());
+        $poData = dbFetchOne("SELECT SupplierID FROM PurchaseOrders WHERE BatchNo=? LIMIT 1", [$item['BatchNo']]);
+        $supplierID = $poData['SupplierID'];
+        
+        $newPOID = dbInsert(
+            "INSERT INTO PurchaseOrders (BatchNo, SupplierID, Status, OrderDate, OrderedDate) VALUES (?, ?, 'Pending', NOW(), NOW())",
+            [$newBatch, $supplierID]
+        );
+        
+        $productData = dbFetchOne("SELECT ProductID FROM Products WHERE Brand=? AND Model=? LIMIT 1", [$item['Brand'], $item['Model']]);
+        $productID = $productData['ProductID'];
+        
+        dbInsert(
+            "INSERT INTO PurchaseOrderDetails (PurchaseOrderID, ProductID, Quantity, UnitCost, Subtotal) VALUES (?, ?, ?, ?, ?)",
+            [$newPOID, $productID, $item['Qty'], $item['Cost'], $item['Qty'] * $item['Cost']]
+        );
+        
+        getDB()->commit();
+        echo "<script>document.addEventListener('DOMContentLoaded', function() { showModal('Success', 'Item re-ordered & moved to Receiving Orders!', 'success', function() { window.location.href='index.php?tab=receivingTab'; }); });</script>";
+        exit;
+    } catch (Exception $e) {
+        getDB()->rollback();
+        $errorMsg = addslashes($e->getMessage());
+        echo "<script>document.addEventListener('DOMContentLoaded', function() { showModal('Error', 'Error: {$errorMsg}', 'error', function() { history.back(); }); });</script>";
+        exit;
     }
-}
-
-
-// ✅ PROCESS RETURN
-if (isset($_GET['return_id'])) {
-    $return_id = intval($_GET['return_id']);
-
-    // Fetch return details
-    $sql = "SELECT * FROM returns WHERE ReturnID = ? AND Status = 'not yet' ";
-    $stmt = $conn->prepare($sql);
-    $stmt->bind_param("i", $return_id);
-    $stmt->execute();
-    $item = $stmt->get_result()->fetch_assoc();
-
-    if (!$item) {
-        exit("❌ Return item not found!");
-    }
-
-    // ✅ Update return status
-    $stmtUR = $conn->prepare("UPDATE returns SET Status='returned' WHERE ReturnID=?");
-    $stmtUR->bind_param("i", $return_id);
-    $stmtUR->execute();
-
-    // ✅ Create new BatchNo
-    $newBatch = "BATCH-" . strtoupper(uniqid());
-
-    // ✅ Get SupplierID from previous PO
-    $stmtPO = $conn->prepare("SELECT SupplierID FROM purchaseorders WHERE BatchNo=? LIMIT 1");
-    $stmtPO->bind_param("s", $item['BatchNo']);
-    $stmtPO->execute();
-    $poData = $stmtPO->get_result()->fetch_assoc();
-    $supplierID = $poData['SupplierID'];
-
-    // ✅ Insert NEW PO (Pending Receiving)
-    $insertPO = "INSERT INTO purchaseorders (BatchNo, SupplierID, Status, OrderDate, OrderedDate)
-                 VALUES (?, ?, 'Pending', NOW(), NOW())";
-    $stmtNewPO = $conn->prepare($insertPO);
-    $stmtNewPO->bind_param("si", $newBatch, $supplierID);
-    $stmtNewPO->execute();
-    $newPOID = $conn->insert_id;
-
-    // ✅ Identify ProductID via Brand + Model
-    $stmtProd = $conn->prepare("SELECT ProductID FROM products WHERE Brand=? AND Model=? LIMIT 1");
-    $stmtProd->bind_param("ss", $item['Brand'], $item['Model']);
-    $stmtProd->execute();
-    $productData = $stmtProd->get_result()->fetch_assoc();
-    $productID = $productData['ProductID'];
-
-    // ✅ Insert PO Details Line
-    $insertPOD = "INSERT INTO purchaseorderdetails 
-                  (PurchaseOrderID, ProductID, Quantity, UnitCost, Subtotal)
-                  VALUES (?, ?, ?, ?, (? * ?))";
-    $stmtPOD = $conn->prepare($insertPOD);
-    $stmtPOD->bind_param("iidddd",
-        $newPOID,
-        $productID,
-        $item['Qty'],
-        $item['Cost'],
-        $item['Qty'],
-        $item['Cost']
-    );
-    $stmtPOD->execute();
-
-    echo "<script>
-        alert('✅ Item re-ordered & moved to Receiving Orders!');
-        window.location.href='index.php?tab=receivingTab';
-    </script>";
-    exit;
 }
 
 
@@ -373,90 +286,45 @@ $sql_payments = "
         thp.BatchNo AS PONumber,
         thp.Brand,
         thp.Model,
-
         SUM(thp.Passed + thp.Failed) AS ReceivedQty,
         SUM(thp.Passed) AS PassedQty,
         SUM(thp.Failed) AS FailedQty,
-
         MAX(thp.UnitCost) AS UnitCost,
         SUM(thp.Passed * thp.UnitCost) AS LineTotal,
-
         MAX(thp.ArrivalDate) AS ArrivalDate,
         MAX(thp.PurchaseOrderID) AS PurchaseOrderID,
-
         (
-            SELECT ap2.PaymentStatus
-            FROM accountspayable ap2
+            SELECT ap2.PaymentStatus FROM AccountsPayable ap2
             WHERE ap2.PurchaseOrderID = MAX(thp.PurchaseOrderID)
-            ORDER BY ap2.APID DESC
-            LIMIT 1
+            ORDER BY ap2.APID DESC LIMIT 1
         ) AS PaymentStatus
-
     FROM transaction_history_precurement thp
-    LEFT JOIN accountspayable ap ON ap.PurchaseOrderID = thp.PurchaseOrderID
+    LEFT JOIN AccountsPayable ap ON ap.PurchaseOrderID = thp.PurchaseOrderID
 ";
 
 if ($payment_status_filter !== 'All') {
-    $sql_payments .= "
-        WHERE ap.PaymentStatus = ?
-    ";
+    $sql_payments .= " WHERE ap.PaymentStatus = ?";
 } else {
-    $sql_payments .= "
-        WHERE ap.PaymentStatus IN ('Paid', 'Request To Pay')
-    ";
+    $sql_payments .= " WHERE ap.PaymentStatus IN ('Paid', 'Request To Pay')";
 }
 
-$sql_payments .= "
-    GROUP BY thp.BatchNo, thp.Brand, thp.Model
-    ORDER BY ArrivalDate DESC
-";
+$sql_payments .= " GROUP BY thp.BatchNo, thp.Brand, thp.Model ORDER BY ArrivalDate DESC";
 
-// ✅ safe execution
-$stmt = $conn->prepare($sql_payments);
-if ($payment_status_filter !== 'All') {
-    $stmt->bind_param("s", $payment_status_filter);
-}
-$stmt->execute();
-$result_payments = $stmt->get_result();
-$payment_history = $result_payments->fetch_all(MYSQLI_ASSOC);
+$params = ($payment_status_filter !== 'All') ? [$payment_status_filter] : [];
+$payment_history = dbFetchAll($sql_payments, $params);
 
-// ✅ Open POs = Laman ng Order Fulfillment Tab
-$sqlOpenPOs = "
-    SELECT COUNT(DISTINCT `Batch#`) AS total 
-    FROM v_purchaseorderdetails
-    WHERE `Ordered Date` IS NULL
-    AND Status = 'Pending'
-";
-$total_open_pos = $conn->query($sqlOpenPOs)->fetch_assoc()['total'] ?? 0;
+// Statistics for dashboard
+$sqlOpenPOs = "SELECT COUNT(DISTINCT `Batch#`) AS total FROM v_PurchaseOrderDetails WHERE `Ordered Date` IS NULL AND Status = 'Pending'";
+$total_open_pos = dbFetchOne($sqlOpenPOs)['total'] ?? 0;
 
+$sqlActiveSuppliers = "SELECT COUNT(*) AS total FROM Suppliers WHERE Status = 'Active'";
+$active_suppliers = dbFetchOne($sqlActiveSuppliers)['total'] ?? 0;
 
-// ✅ Active Suppliers = Status is Active only
-$sqlActiveSuppliers = "
-    SELECT COUNT(*) AS total 
-    FROM suppliers 
-    WHERE Status = 'Active'
-";
-$active_suppliers = $conn->query($sqlActiveSuppliers)->fetch_assoc()['total'] ?? 0;
+$sqlReceivingOrders = "SELECT COUNT(DISTINCT BatchNo) AS total FROM transaction_history_precurement WHERE ArrivalDate IS NULL";
+$total_receiving_orders = dbFetchOne($sqlReceivingOrders)['total'] ?? 0;
 
-
-// ✅ Receiving Orders = Already approved & Waiting for arrival
-$sqlReceivingOrders = "
-    SELECT COUNT(DISTINCT BatchNo) AS total 
-    FROM transaction_history_precurement
-    WHERE ArrivalDate IS NULL
-";
-$total_receiving_orders = 
-    $conn->query($sqlReceivingOrders)->fetch_assoc()['total'] ?? 0;
-
-
-// ✅ Total Spend = FROM REPORTS — Passed only + PaymentStatus = Pending
-$sqlTotalSpend = "
-    SELECT SUM(thp.Passed * thp.UnitCost) AS total
-    FROM transaction_history_precurement thp
-    LEFT JOIN accountspayable ap ON ap.PurchaseOrderID = thp.PurchaseOrderID
-    WHERE ap.PaymentStatus = 'Pending'
-";
-$total_spend = $conn->query($sqlTotalSpend)->fetch_assoc()['total'] ?? 0;
+$sqlTotalSpend = "SELECT SUM(thp.Passed * thp.UnitCost) AS total FROM transaction_history_precurement thp LEFT JOIN AccountsPayable ap ON ap.PurchaseOrderID = thp.PurchaseOrderID WHERE ap.PaymentStatus = 'Pending'";
+$total_spend = dbFetchOne($sqlTotalSpend)['total'] ?? 0;
 
 
 
@@ -470,14 +338,16 @@ $total_spend = $conn->query($sqlTotalSpend)->fetch_assoc()['total'] ?? 0;
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Procurement - Shoe Retail ERP</title>
+    <link rel="stylesheet" href="../css/style.css">
     <link rel="stylesheet" href="./css/index.css">
-    <script src="./js/index.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="./js/index.js"></script>
 </head>
 <body>
+<?php include '../includes/navbar.php'; ?>
+<?php include '../includes/modal.php'; ?>
 
 <div class="alert-container"></div>
-<?php include '../includes/navbar.php'; ?>
 
 <div class="main-wrapper" style="margin-left: 0;">
     <main class="main-content">
@@ -1045,26 +915,43 @@ document.getElementById('paymentSearch').addEventListener('input', function() {
 
 </script>
 <script>
-document.querySelectorAll('.nav-link').forEach(tab => {
-    tab.addEventListener('click', function(e) {
-        e.preventDefault();
-        const tabName = this.getAttribute('data-tab');
-        const url = new URL(window.location.href);
-        url.searchParams.set('tab', tabName);
-        window.location.href = url.toString();
-    });
-});
-</script>
-<script>
+// Tab switching without page reload
 document.addEventListener('DOMContentLoaded', () => {
-    const url = new URL(window.location.href);
-    const activeTab = url.searchParams.get('tab') || 'fulfillmentTab';
-
+    // Get active tab from URL or default to first tab
+    const urlParams = new URLSearchParams(window.location.search);
+    const activeTab = urlParams.get('tab') || 'fulfillmentTab';
+    
+    // Show active tab on page load
     document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
-    document.getElementById(activeTab).style.display = 'block';
-
+    if (document.getElementById(activeTab)) {
+        document.getElementById(activeTab).style.display = 'block';
+    }
+    
     document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
-    document.querySelector(`[data-tab="${activeTab}"]`).classList.add('active');
+    const activeLink = document.querySelector(`[data-tab="${activeTab}"]`);
+    if (activeLink) activeLink.classList.add('active');
+    
+    // Handle tab clicks without reload
+    document.querySelectorAll('.nav-link').forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            const tabName = this.getAttribute('data-tab');
+            
+            // Hide all tabs
+            document.querySelectorAll('.tab-pane').forEach(p => p.style.display = 'none');
+            // Show selected tab
+            document.getElementById(tabName).style.display = 'block';
+            
+            // Update active state
+            document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Update URL without reload
+            const url = new URL(window.location.href);
+            url.searchParams.set('tab', tabName);
+            window.history.pushState({}, '', url);
+        });
+    });
 });
 </script>
 
@@ -1078,7 +965,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </body>
 </html>
-<?php
-// Close database connection
-$conn->close();
-?>

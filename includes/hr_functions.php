@@ -414,16 +414,29 @@ function calculatePayroll($employeeId, $payPeriodStart, $payPeriodEnd) {
             $grossPay, $deductions, $bonuses, $netPay
         ]);
         
-        // Record in general ledger
+        // Record in general ledger (accrual entries)
         $storeId = $employee['StoreID'];
-        recordGeneralLedger('Expense', 'Payroll Expense', 
-            "Payroll for employee {$employee['FirstName']} {$employee['LastName']}", 
-            $netPay, 0, $payrollId, 'Payroll', $storeId);
+        // Debit Payroll Expense (Gross)
+        recordGeneralLedger('Expense', 'Payroll Expense',
+            "Payroll accrual for {$employee['FirstName']} {$employee['LastName']}",
+            $grossPay, 0, $payrollId, 'Payroll', $storeId);
+        // Credit Payroll Taxes Payable (Deductions)
+        if ($deductions > 0) {
+            recordGeneralLedger('Liability', 'Payroll Taxes Payable',
+                "Withholding/Statutory deductions for payroll #{$payrollId}",
+                0, $deductions, $payrollId, 'Payroll', $storeId);
+        }
+        // Credit Wages Payable (Net)
+        if ($netPay > 0) {
+            recordGeneralLedger('Liability', 'Wages Payable',
+                "Accrued wages for {$employee['FirstName']} {$employee['LastName']}",
+                0, $netPay, $payrollId, 'Payroll', $storeId);
+        }
         
-        // Record in expenses
+        // Record in expenses (for operational tracking) - use Gross to align with GL expense
         dbExecute(
             "INSERT INTO Expenses (StoreID, Description, Amount, Category) VALUES (?, ?, ?, ?)",
-            [$storeId, "Payroll - {$employee['FirstName']} {$employee['LastName']}", $netPay, 'Payroll']
+            [$storeId, "Payroll - {$employee['FirstName']} {$employee['LastName']}", $grossPay, 'Payroll']
         );
         
         getDB()->commit();
@@ -564,12 +577,19 @@ function processPayroll($payrollId) {
             [$payrollId]
         );
         
-        // Record payment in general ledger (if not already recorded)
+        // Record payment in general ledger (settle wages payable)
         $employee = dbFetchOne("SELECT * FROM Employees WHERE EmployeeID = ?", [$payroll['EmployeeID']]);
-        
-        recordGeneralLedger('Asset', 'Cash', 
-            "Payroll payment to {$employee['FirstName']} {$employee['LastName']}", 
-            0, $payroll['NetPay'], $payrollId, 'Payment', $employee['StoreID']);
+        $storeId = $employee['StoreID'];
+        // Debit Wages Payable (reduce liability)
+        if ($payroll['NetPay'] > 0) {
+            recordGeneralLedger('Liability', 'Wages Payable',
+                "Payroll payment to {$employee['FirstName']} {$employee['LastName']}",
+                $payroll['NetPay'], 0, $payrollId, 'Payment', $storeId);
+            // Credit Cash (outflow)
+            recordGeneralLedger('Asset', 'Cash',
+                "Payroll payment to {$employee['FirstName']} {$employee['LastName']}",
+                0, $payroll['NetPay'], $payrollId, 'Payment', $storeId);
+        }
         
         getDB()->commit();
         
@@ -580,6 +600,38 @@ function processPayroll($payrollId) {
         logError("Failed to process payroll", ['error' => $e->getMessage()]);
         throw $e;
     }
+}
+
+// ==============================================
+// PAYROLL ACCRUAL POSTING (for generated payroll rows)
+// ==============================================
+
+/**
+ * Post GL accrual entries for an existing payroll row (generated externally)
+ */
+function postPayrollAccrual($payrollId) {
+    $payroll = dbFetchOne("SELECT p.*, e.FirstName, e.LastName, e.StoreID FROM Payroll p JOIN Employees e ON p.EmployeeID = e.EmployeeID WHERE p.PayrollID = ?", [$payrollId]);
+    if (!$payroll) {
+        throw new Exception("Payroll record not found for accrual posting");
+    }
+    $storeId = $payroll['StoreID'];
+    // Debit Payroll Expense (Gross)
+    recordGeneralLedger('Expense', 'Payroll Expense',
+        "Payroll accrual for {$payroll['FirstName']} {$payroll['LastName']}",
+        $payroll['GrossPay'], 0, $payrollId, 'Payroll', $storeId);
+    // Credit Payroll Taxes Payable (Deductions)
+    if (floatval($payroll['Deductions']) > 0) {
+        recordGeneralLedger('Liability', 'Payroll Taxes Payable',
+            "Withholding/Statutory deductions for payroll #{$payrollId}",
+            0, $payroll['Deductions'], $payrollId, 'Payroll', $storeId);
+    }
+    // Credit Wages Payable (Net)
+    if (floatval($payroll['NetPay']) > 0) {
+        recordGeneralLedger('Liability', 'Wages Payable',
+            "Accrued wages for {$payroll['FirstName']} {$payroll['LastName']}",
+            0, $payroll['NetPay'], $payrollId, 'Payroll', $storeId);
+    }
+    return true;
 }
 
 // ==============================================

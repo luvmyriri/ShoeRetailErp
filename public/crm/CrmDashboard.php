@@ -10,6 +10,15 @@ header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
 header('Cache-Control: post-check=0, pre-check=0', false);
 header('Pragma: no-cache');
 
+// Role-based access control
+$userRole = $_SESSION['role'] ?? '';
+$allowedRoles = ['Admin', 'Manager', 'Sales', 'Customer Service'];
+
+if (!in_array($userRole, $allowedRoles)) {
+    header('Location: /ShoeRetailErp/public/index.php?error=access_denied');
+    exit;
+}
+
 require __DIR__ . '/../../config/database.php';
 require_once('../../api/crm.php');
 

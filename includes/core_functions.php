@@ -137,37 +137,90 @@ function getLowStockItems($storeId = null) {
 /**
  * Process a complete sale using stored procedure
  */
-function processSale($customerId, $storeId, $products, $paymentMethod = 'Cash', $discountAmount = 0) {
+function processSale($customerId, $storeId, $products, $paymentMethod = 'Cash', $discountAmount = 0, $pointsUsed = 0, $paymentStatus = null, $amountPaid = 0.0) {
     try {
-        // Prepare products JSON
-        $productsJson = json_encode($products);
-        
-        // Call stored procedure
-        $query = "CALL ProcessSale(?, ?, ?, ?, ?, @sale_id)";
-        dbExecute($query, [$customerId, $storeId, $productsJson, $paymentMethod, $discountAmount]);
-        
-        // Get the sale ID
-        $result = dbFetchOne("SELECT @sale_id as sale_id");
-        $saleId = $result['sale_id'];
-        
-        // If credit sale, create accounts receivable
-        if ($paymentMethod === 'Credit') {
-            createAccountsReceivable($saleId, $customerId);
+        // Normalize products to expected JSON keys by stored procedure:
+        // {productID, quantity, unitID, unitPrice}
+        $normalized = [];
+        foreach ($products as $p) {
+            $normalized[] = [
+                'productID' => intval($p['product_id'] ?? $p['ProductID'] ?? 0),
+                'quantity' => floatval($p['quantity'] ?? 0),
+                'unitID' => isset($p['unit_id']) ? intval($p['unit_id']) : null,
+                'unitPrice' => floatval($p['price'] ?? $p['unit_price'] ?? 0),
+            ];
         }
-        
-        logInfo("Sale processed successfully", [
-            'sale_id' => $saleId, 
-            'customer_id' => $customerId, 
-            'store_id' => $storeId
+        $productsJson = json_encode($normalized);
+
+        // Derive default payment status if not provided
+        if ($paymentStatus === null) {
+            $upper = strtoupper((string)$paymentMethod);
+            if ($upper === 'CREDIT') $paymentStatus = 'Credit';
+            elseif ($upper === 'PARTIAL') $paymentStatus = 'Partial';
+            else $paymentStatus = 'Paid';
+        }
+
+        // Call stored procedure per schema signature
+        // ProcessSale(p_customer_id, p_store_id, p_products JSON, p_payment_method, p_discount_amount, p_points_used, p_payment_status, p_amount_paid, OUT p_sale_id)
+        dbExecute("SET @sale_id = 0");
+        $query = "CALL ProcessSale(?, ?, ?, ?, ?, ?, ?, ?, @sale_id)";
+        dbExecute($query, [
+            $customerId,
+            $storeId,
+            $productsJson,
+            $paymentMethod,
+            $discountAmount,
+            $pointsUsed,
+            $paymentStatus,
+            $amountPaid,
         ]);
-        
+
+        $result = dbFetchOne("SELECT @sale_id as sale_id");
+        $saleId = intval($result['sale_id'] ?? 0);
+        if ($saleId <= 0) {
+            throw new Exception('Sale ID not returned by ProcessSale');
+        }
+
+        // Create invoice if missing
+        $exists = dbFetchOne("SELECT InvoiceID FROM invoices WHERE SaleID = ?", [$saleId]);
+        if (!$exists) {
+            $invNo = 'INV-' . date('Ymd') . '-' . str_pad($saleId, 5, '0', STR_PAD_LEFT);
+            $sale = dbFetchOne("SELECT CustomerID, StoreID, TotalAmount, TaxAmount, DiscountAmount, PaymentMethod, PaymentStatus FROM sales WHERE SaleID = ?", [$saleId]);
+            $invoiceId = dbInsert(
+                "INSERT INTO invoices (InvoiceNumber, SaleID, CustomerID, StoreID, InvoiceDate, TotalAmount, TaxAmount, DiscountAmount, PaymentMethod, PaymentStatus, CreatedBy) VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?)",
+                [
+                    $invNo, $saleId,
+                    $sale['CustomerID'] ?? null,
+                    $sale['StoreID'] ?? null,
+                    $sale['TotalAmount'] ?? 0,
+                    $sale['TaxAmount'] ?? 0,
+                    $sale['DiscountAmount'] ?? 0,
+                    $sale['PaymentMethod'] ?? $paymentMethod,
+                    $sale['PaymentStatus'] ?? $paymentStatus,
+                    $_SESSION['username'] ?? 'System'
+                ]
+            );
+            // Copy lines
+            $lines = dbFetchAll("SELECT ProductID, Quantity, SalesUnitID, QuantityBase, UnitPrice, Subtotal FROM saledetails WHERE SaleID = ?", [$saleId]);
+            foreach ($lines as $ln) {
+                dbInsert("INSERT INTO invoiceitems (InvoiceID, ProductID, Quantity, UnitID, QuantityBase, UnitPrice, Subtotal) VALUES (?, ?, ?, ?, ?, ?, ?)", [
+                    $invoiceId,
+                    $ln['ProductID'],
+                    $ln['Quantity'],
+                    $ln['SalesUnitID'],
+                    $ln['QuantityBase'],
+                    $ln['UnitPrice'],
+                    $ln['Subtotal'],
+                ]);
+            }
+        }
+
+        logInfo("Sale processed successfully", [
+            'sale_id' => $saleId, 'customer_id' => $customerId, 'store_id' => $storeId
+        ]);
         return $saleId;
     } catch (Exception $e) {
-        logError("Failed to process sale", [
-            'error' => $e->getMessage(), 
-            'customer_id' => $customerId, 
-            'store_id' => $storeId
-        ]);
+        logError("Failed to process sale", [ 'error' => $e->getMessage(), 'customer_id' => $customerId, 'store_id' => $storeId ]);
         throw $e;
     }
 }
@@ -785,8 +838,9 @@ function generateSalesReport($startDate, $endDate, $storeId = null) {
 /**
  * User authentication and session management
  */
-function authenticateUser($username, $password) {
-    $user = dbFetchOne("SELECT * FROM Users WHERE Username = ? AND Status = 'Active'", [$username]);
+function authenticateUser($usernameOrEmail, $password) {
+    $usernameOrEmail = trim((string)$usernameOrEmail);
+    $user = dbFetchOne("SELECT * FROM users WHERE (Username = ? OR Email = ?) AND Status = 'Active' LIMIT 1", [$usernameOrEmail, $usernameOrEmail]);
     
     if ($user && verifyPassword($password, $user['PasswordHash'])) {
         if (session_status() == PHP_SESSION_NONE) {
@@ -796,13 +850,13 @@ function authenticateUser($username, $password) {
         $_SESSION['username'] = $user['Username'];
         $_SESSION['role'] = $user['Role'];
         $_SESSION['store_id'] = $user['StoreID'];
-        $_SESSION['full_name'] = $user['FirstName'] . ' ' . $user['LastName'];
+        $_SESSION['full_name'] = trim(($user['FirstName'] ?? '') . ' ' . ($user['LastName'] ?? ''));
         
-        logInfo("User logged in successfully", ['username' => $username, 'role' => $user['Role']]);
+        logInfo("User logged in successfully", ['username' => $user['Username'], 'role' => $user['Role']]);
         return true;
     }
     
-    logError("Failed login attempt", ['username' => $username]);
+    logError("Failed login attempt", ['username_or_email' => $usernameOrEmail]);
     return false;
 }
 

@@ -1,41 +1,46 @@
 <?php
-include './Connection.php';
+session_start();
+if (!isset($_SESSION['user_id'])) { header('Location: /ShoeRetailErp/login.php'); exit; }
+require_once '../../config/database.php';
+require_once '../../includes/core_functions.php';
 
 /**
  * ✅ REQUEST TO PAY — Update Payment Status
  */
 if (isset($_GET['action']) && $_GET['action'] === 'requestPay' && isset($_GET['batch'])) {
-    $batchNo = $_GET['batch'];
-
-    $sqlFindPO = "SELECT PurchaseOrderID FROM purchaseorders WHERE BatchNo = ? LIMIT 1";
-    $stmtPO = $conn->prepare($sqlFindPO);
-    $stmtPO->bind_param("s", $batchNo);
-    $stmtPO->execute();
-    $poData = $stmtPO->get_result()->fetch_assoc();
-    $stmtPO->close();
-
-    if ($poData) {
-        $poid = intval($poData['PurchaseOrderID']);
-
-        $sqlUpdate = "UPDATE accountspayable 
-                      SET PaymentStatus = 'Request to Pay'
-                      WHERE PurchaseOrderID = ?";
-        $stmtUP = $conn->prepare($sqlUpdate);
-        $stmtUP->bind_param("i", $poid);
-        $stmtUP->execute();
-        $stmtUP->close();
-
-        echo "<script>
-                alert('📌 Request to Pay sent to Accountant!');
-                window.location.href='./index.php';
-             </script>";
-        exit;
+    try {
+        $batchNo = $_GET['batch'];
+        $poData = dbFetchOne("SELECT PurchaseOrderID FROM PurchaseOrders WHERE BatchNo = ? LIMIT 1", [$batchNo]);
+        if ($poData) {
+            $poid = intval($poData['PurchaseOrderID']);
+            dbUpdate("UPDATE AccountsPayable SET PaymentStatus = 'Request to Pay' WHERE PurchaseOrderID = ?", [$poid]);
+            logInfo('Request to pay sent', ['batch' => $batchNo, 'po_id' => $poid]);
+            echo "<script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        showModal('Success', 'Request to Pay sent to Accountant!', 'success', function() {
+                            window.location.href='./index.php';
+                        });
+                    });
+                 </script>";
+            exit;
+        }
+    } catch (Exception $e) {
+        logError('Failed to send request to pay', ['error' => $e->getMessage(), 'batch' => $batchNo ?? '']);
+        $errorMsg = addslashes($e->getMessage());
+        echo "<script>document.addEventListener('DOMContentLoaded', function() { showModal('Error', 'Error: {$errorMsg}', 'error'); });</script>";
     }
 }
 
-// ✅ Validate Batch Input
+// Validate Batch Input
 if (!isset($_GET['batch']) || empty($_GET['batch'])) {
-    die("Invalid Batch Number");
+    echo "<script>
+            document.addEventListener('DOMContentLoaded', function() {
+                showModal('Error', 'Invalid Batch Number. Redirecting to procurement page...', 'error', function() {
+                    window.location.href = './index.php?tab=goodsTab';
+                });
+            });
+          </script>";
+    exit;
 }
 $batchNo = $_GET['batch'];
 
@@ -50,47 +55,34 @@ $sqlHeader = "
         s.PaymentTerms,
         MIN(po.OrderDate) AS OrderDate,
         MAX(thp.ArrivalDate) AS ArrivalDate,
-
-        -- ✅ Latest Payment Status
         COALESCE(
-            (SELECT ap2.PaymentStatus 
-             FROM accountspayable ap2
-             WHERE ap2.PurchaseOrderID = po.PurchaseOrderID
-             ORDER BY ap2.APID DESC LIMIT 1),
-            'Pending'
+            (SELECT ap2.PaymentStatus FROM AccountsPayable ap2
+             WHERE ap2.PurchaseOrderID = po.PurchaseOrderID ORDER BY ap2.APID DESC LIMIT 1), 'Pending'
         ) AS PaymentStatus,
-
-        -- ✅ Latest Payment Date
-        (SELECT ap3.PaymentDate 
-         FROM accountspayable ap3
-         WHERE ap3.PurchaseOrderID = po.PurchaseOrderID
-         ORDER BY ap3.APID DESC LIMIT 1) AS PaymentDate,
-
-        -- ✅ Latest Amount Due
+        (SELECT ap3.PaymentDate FROM AccountsPayable ap3
+         WHERE ap3.PurchaseOrderID = po.PurchaseOrderID ORDER BY ap3.APID DESC LIMIT 1) AS PaymentDate,
         COALESCE(
-            (SELECT ap4.AmountDue 
-             FROM accountspayable ap4
-             WHERE ap4.PurchaseOrderID = po.PurchaseOrderID
-             ORDER BY ap4.APID DESC LIMIT 1),
-            0
+            (SELECT ap4.AmountDue FROM AccountsPayable ap4
+             WHERE ap4.PurchaseOrderID = po.PurchaseOrderID ORDER BY ap4.APID DESC LIMIT 1), 0
         ) AS AmountDue
-
-    FROM purchaseorders po
-    LEFT JOIN suppliers s ON s.SupplierID = po.SupplierID
+    FROM PurchaseOrders po
+    LEFT JOIN Suppliers s ON s.SupplierID = po.SupplierID
     LEFT JOIN transaction_history_precurement thp ON thp.BatchNo = po.BatchNo
     WHERE po.BatchNo = ?
     GROUP BY po.PurchaseOrderID, po.BatchNo, s.SupplierName, s.PaymentTerms
 ";
 
-
-$stmtH = $conn->prepare($sqlHeader);
-$stmtH->bind_param("s", $batchNo);
-$stmtH->execute();
-$header = $stmtH->get_result()->fetch_assoc();
-$stmtH->close();
+$header = dbFetchOne($sqlHeader, [$batchNo]);
 
 if (!$header) {
-    die("No GRN data found.");
+    echo "<script>
+            document.addEventListener('DOMContentLoaded', function() {
+                showModal('Error', 'No Goods Receipt data found for this batch.', 'error', function() {
+                    window.location.href = './index.php?tab=goodsTab';
+                });
+            });
+          </script>";
+    exit;
 }
 
 /**
@@ -104,25 +96,19 @@ $sqlLines = "
         SUM(thp.Failed) AS FailedQty,
         AVG(thp.UnitCost) AS UnitCost
     FROM transaction_history_precurement thp
-    LEFT JOIN purchaseorders po ON po.BatchNo = thp.BatchNo
-    LEFT JOIN products p ON p.Brand = thp.Brand AND p.Model = thp.Model
-    LEFT JOIN purchaseorderdetails pod ON pod.PurchaseOrderID = po.PurchaseOrderID
-        AND pod.ProductID = p.ProductID
+    LEFT JOIN PurchaseOrders po ON po.BatchNo = thp.BatchNo
+    LEFT JOIN Products p ON p.Brand = thp.Brand AND p.Model = thp.Model
+    LEFT JOIN PurchaseOrderDetails pod ON pod.PurchaseOrderID = po.PurchaseOrderID AND pod.ProductID = p.ProductID
     WHERE thp.BatchNo = ?
     GROUP BY ProductName
     ORDER BY ProductName
 ";
 
-$stmtL = $conn->prepare($sqlLines);
-$stmtL->bind_param("s", $batchNo);
-$stmtL->execute();
-$resultLines = $stmtL->get_result();
-$stmtL->close();
-
+$lines = dbFetchAll($sqlLines, [$batchNo]);
 $products = [];
 $totalSubtotal = 0;
 
-while ($row = $resultLines->fetch_assoc()) {
+foreach ($lines as $row) {
     $row['LineTotal'] = $row['PassedQty'] * $row['UnitCost'];
     $totalSubtotal += $row['LineTotal'];
     $products[] = $row;
@@ -162,6 +148,9 @@ text-decoration:none;color:#000;}
 </head>
 
 <body>
+<?php include '../includes/navbar.php'; ?>
+<?php include '../includes/modal.php'; ?>
+<link rel="stylesheet" href="../css/style.css">
 
 <div class="container">
     <h1>Goods Receipt Note</h1>
@@ -237,5 +226,3 @@ text-decoration:none;color:#000;}
 
 </body>
 </html>
-
-<?php $conn->close(); ?>

@@ -1,5 +1,18 @@
 <?php
-include './Connection.php';
+session_start();
+if (!isset($_SESSION['user_id'])) { header('Location: /ShoeRetailErp/login.php'); exit; }
+
+// Role-based access control
+$userRole = $_SESSION['role'] ?? '';
+$allowedRoles = ['Admin', 'Manager', 'Procurement'];
+
+if (!in_array($userRole, $allowedRoles)) {
+    header('Location: /ShoeRetailErp/public/index.php?error=access_denied');
+    exit;
+}
+
+require_once '../../config/database.php';
+require_once '../../includes/core_functions.php';
 
 // ✅ Filter: Month & Year (default current month)
 $report_month = isset($_GET['month']) ? $_GET['month'] : date('Y-m');
@@ -8,7 +21,6 @@ $report_month = isset($_GET['month']) ? $_GET['month'] : date('Y-m');
 $status_filter = isset($_GET['status']) ? $_GET['status'] : 'All';
 
 
-// ✅ Query using JOINs; View removed successfully ✅
 $sql = "SELECT 
             thp.BatchNo AS PONumber,
             CONCAT(thp.Brand, ' ', thp.Model) AS ProductName,
@@ -30,17 +42,12 @@ if ($status_filter !== 'All') {
 
 $sql .= " ORDER BY PONumber, ProductName";
 
-$stmt = $conn->prepare($sql);
-
+$params = [$report_month];
 if ($status_filter !== 'All') {
-    $stmt->bind_param("ss", $report_month, $status_filter);
-} else {
-    $stmt->bind_param("s", $report_month);
+    $params[] = $status_filter;
 }
 
-$stmt->execute();
-$result = $stmt->get_result();
-$rows = $result->fetch_all(MYSQLI_ASSOC);
+$rows = dbFetchAll($sql, $params);
 
 
 // ✅ Data grouping & totals
@@ -78,129 +85,146 @@ foreach ($rows as $r) {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width">
-    <link rel="stylesheet" href="./css/reports.css">
-    <script src="./js/reports.js"></script>
-    <title>Monthly Receiving and QC Report</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monthly Receiving and QC Report - Shoe Retail ERP</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        @media print {
+            .no-print { display: none; }
+        }
+    </style>
 </head>
 
-<body class="bg-gray-50 font-sans p-4 min-h-screen flex flex-col">
+<body>
+<?php include '../includes/navbar.php'; ?>
 
-    <!-- ✅ FILTER FORM -->
-    <form method="GET" class="max-w-6xl mx-auto flex gap-4 mb-6">
-        
-        <!-- Month Filter -->
-        <div>
-            <label class="text-gray-700 font-medium">Month:</label>
-            <input type="month" name="month" value="<?= $report_month ?>" class="border p-2 rounded-md">
+<div class="main-wrapper" style="margin-left: 0;">
+    <main class="main-content">
+        <!-- Page Header -->
+        <div class="page-header no-print">
+            <div class="page-header-title">
+                <h1>Purchase Receiving & QC Report</h1>
+                <div class="page-header-breadcrumb">
+                    <a href="/ShoeRetailErp/public/index.php">Home</a> / 
+                    <a href="./index.php">Procurement</a> / 
+                    Reports
+                </div>
+            </div>
+            <div class="page-header-actions">
+                <button class="btn btn-secondary" onclick="window.print()">
+                    <i class="fas fa-print"></i> Print Report
+                </button>
+                <button class="btn btn-primary" onclick="handleDownload()">
+                    <i class="fas fa-download"></i> Download PDF
+                </button>
+            </div>
         </div>
 
-        <!-- Status Filter -->
-        <div>
-            <label class="text-gray-700 font-medium">Payment Status:</label>
-            <select name="status" class="border p-2 rounded-md">
-                <option <?= ($status_filter == 'All' ? 'selected' : '') ?>>All</option>
-                <option value="Pending" <?= ($status_filter == 'Pending' ? 'selected' : '') ?>>Pending</option>
-                <option value="Paid" <?= ($status_filter == 'Paid' ? 'selected' : '') ?>>Paid</option>
-                <option value="Overdue" <?= ($status_filter == 'Overdue' ? 'selected' : '') ?>>Overdue</option>
-                <option value="Partial" <?= ($status_filter == 'Partial' ? 'selected' : '') ?>>Partial</option>
-                <option value="Request to pay" <?= ($status_filter == 'Partial' ? 'selected' : '') ?>>Request To Pay</option>
-            </select>
+        <!-- Filter Form -->
+        <form method="GET" class="card no-print" style="margin-bottom: 1rem;">
+            <div class="card-header">
+                <h3>Report Filters</h3>
+            </div>
+            <div class="card-body">
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; align-items: end;">
+                    <div>
+                        <label style="display: block; margin-bottom: 0.25rem; font-weight: 600;">Month:</label>
+                        <input type="month" name="month" value="<?= $report_month ?>" class="form-control">
+                    </div>
+
+                    <div>
+                        <label style="display: block; margin-bottom: 0.25rem; font-weight: 600;">Payment Status:</label>
+                        <select name="status" class="form-control">
+                            <option <?= ($status_filter == 'All' ? 'selected' : '') ?>>All</option>
+                            <option value="Pending" <?= ($status_filter == 'Pending' ? 'selected' : '') ?>>Pending</option>
+                            <option value="Paid" <?= ($status_filter == 'Paid' ? 'selected' : '') ?>>Paid</option>
+                            <option value="Overdue" <?= ($status_filter == 'Overdue' ? 'selected' : '') ?>>Overdue</option>
+                            <option value="Partial" <?= ($status_filter == 'Partial' ? 'selected' : '') ?>>Partial</option>
+                            <option value="Request to pay" <?= ($status_filter == 'Request to pay' ? 'selected' : '') ?>>Request To Pay</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-filter"></i> Filter
+                    </button>
+                </div>
+            </div>
+        </form>
+
+        <!-- Report Content -->
+        <div id="monthly-report-content" class="card">
+            <div class="card-header" style="text-align: center; border-bottom: 2px solid var(--primary-color);">
+                <h2 style="margin: 0 0 0.5rem 0; font-size: 24px;">Purchase Receiving & QC Report</h2>
+                <p style="margin: 0; font-size: 16px; color: var(--gray-600);">Monthly Transaction Summary</p>
+                <p style="margin: 0.5rem 0 0 0; font-size: 14px; color: var(--gray-700);">
+                    <strong>Month: <?= date('F Y', strtotime($report_month . "-01")) ?></strong>
+                </p>
+            </div>
+
+            <div class="card-body table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Batch #</th>
+                            <th>Brand</th>
+                            <th>Model</th>
+                            <th style="text-align: center;">Received</th>
+                            <th style="text-align: center;">QC Passed</th>
+                            <th style="text-align: center;">QC Failed</th>
+                            <th style="text-align: right;">Unit Cost</th>
+                            <th style="text-align: right;">Line Total</th>
+                            <th style="text-align: center;">Arrival Date</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        <?php if (empty($transactions)): ?>
+                        <tr>
+                            <td colspan="9" style="text-align: center; padding: 2rem; color: var(--gray-500);">
+                                <i class="fas fa-inbox" style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5; display: block;"></i>
+                                No transactions found for selected filters
+                            </td>
+                        </tr>
+                        <?php else: ?>
+                            <?php foreach ($transactions as $t): ?>
+                            <tr>
+                                <td><?= htmlspecialchars($t['Batch']) ?></td>
+                                <td><?= htmlspecialchars($t['Brand']) ?></td>
+                                <td><?= htmlspecialchars($t['Model']) ?></td>
+                                <td style="text-align: center;"><?= number_format($t['ReceivedQty']) ?></td>
+                                <td style="text-align: center; color: var(--success-color); font-weight: 600;"><?= number_format($t['PassedQty']) ?></td>
+                                <td style="text-align: center; color: var(--danger-color); font-weight: 600;"><?= number_format($t['FailedQty']) ?></td>
+                                <td style="text-align: right;">₱<?= number_format($t['UnitCost'], 2) ?></td>
+                                <td style="text-align: right; font-weight: 600;">
+                                    ₱<?= number_format($t['UnitCost'] * $t['PassedQty'], 2) ?>
+                                </td>
+                                <td style="text-align: center;"><?= date('M d, Y', strtotime($t['ArrivalDate'])) ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+
+                    <?php if (!empty($transactions)): ?>
+                    <tfoot style="border-top: 2px solid var(--primary-color); background-color: var(--gray-50);">
+                        <tr style="font-weight: 700;">
+                            <td colspan="3" style="text-align: right; padding: 0.75rem;">TOTAL:</td>
+                            <td style="text-align: center;"><?= number_format($totReceived) ?></td>
+                            <td style="text-align: center; color: var(--success-color);"><?= number_format($totPassed) ?></td>
+                            <td style="text-align: center; color: var(--danger-color);"><?= number_format($totFailed) ?></td>
+                            <td></td>
+                            <td style="text-align: right; font-size: 18px; color: var(--gray-900);">₱<?= number_format($totAmount, 2) ?></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                    <?php endif; ?>
+                </table>
+            </div>
         </div>
 
-        <button type="submit" class="self-end bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-4 py-2 rounded-md shadow">
-            FILTER
-        </button>
-    </form>
-
-
-    <!-- ✅ REPORT CONTENT -->
-    <div id="monthly-report-content" class="max-w-6xl mx-auto p-8 bg-white rounded-xl shadow-2xl border border-gray-200 flex-grow">
-
-        <header class="text-center mb-8 pb-4 border-b-4 border-indigo-600">
-            <h1 class="text-3xl font-extrabold text-gray-900">Purchase Receiving & QC Report</h1>
-            <h2 class="text-xl font-semibold text-gray-700 mt-1">Monthly Transaction Summary</h2>
-            <p class="text-lg text-gray-600 mt-2">
-                Month: 
-                <span class="font-bold text-gray-800">
-                    <?= date('F Y', strtotime($report_month . "-01")) ?>
-                </span>
-            </p>
-        </header>
-
-        <!-- ✅ DATA TABLE -->
-        <div class="overflow-x-auto shadow-lg rounded-lg border border-gray-200">
-            <table class="report-table w-full border-collapse">
-                <thead>
-                    <tr class="bg-gray-700 text-white text-left uppercase tracking-wider">
-                        <th class="p-3 rounded-tl-lg">Batch #</th>
-                        <th class="p-3">Brand</th>
-                        <th class="p-3">Model</th>
-                        <th class="p-3 text-center">Received</th>
-                        <th class="p-3 text-center bg-green-700">QC Passed</th>
-                        <th class="p-3 text-center bg-red-700">QC Failed</th>
-                        <th class="p-3 text-right">Unit Cost</th>
-                        <th class="p-3 text-right">Line Total</th>
-                        <th class="p-3 text-center rounded-tr-lg">Arrival Date</th>
-                    </tr>
-                </thead>
-
-                <tbody class="text-gray-700 divide-y divide-gray-200">
-                    <?php foreach ($transactions as $t): ?>
-                    <tr class="hover:bg-indigo-50 transition duration-100">
-                        <td class="p-3"><?= $t['Batch'] ?></td>
-                        <td class="p-3"><?= $t['Brand'] ?></td>
-                        <td class="p-3"><?= $t['Model'] ?></td>
-                        <td class="p-3 text-center"><?= number_format($t['ReceivedQty']) ?></td>
-                        <td class="p-3 text-center text-green-700 font-medium"><?= number_format($t['PassedQty']) ?></td>
-                        <td class="p-3 text-center text-red-700 font-medium"><?= number_format($t['FailedQty']) ?></td>
-                        <td class="p-3 text-right"><?= number_format($t['UnitCost'], 2) ?></td>
-                        <td class="p-3 text-right font-semibold">
-                            <?= number_format($t['UnitCost'] * $t['PassedQty'], 2) ?>
-                        </td>
-                        <td class="p-3 text-center"><?= $t['ArrivalDate'] ?></td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-
-                <!-- ✅ TOTALS FOOTER -->
-                <tfoot>
-                    <tr class="text-lg bg-gray-100 border-t-4 border-indigo-700">
-                        <td colspan="3" class="p-3 text-right font-extrabold text-gray-900">TOTAL:</td>
-                        <td class="p-3 text-center"><?= number_format($totReceived) ?></td>
-                        <td class="p-3 text-center text-green-700"><?= number_format($totPassed) ?></td>
-                        <td class="p-3 text-center text-red-700"><?= number_format($totFailed) ?></td>
-                        <td></td>
-                        <td class="p-3 text-right text-black text-xl font-extrabold">₱<?= number_format($totAmount, 2) ?></td>
-                        <td></td>
-                    </tr>
-                </tfoot>
-
-            </table>
-        </div>
-
-    </div>
-
-
-    <!-- ✅ BUTTONS -->
-    <div class="no-print max-w-6xl mx-auto flex justify-between mt-8 mb-4 px-8 py-5 bg-white rounded-xl shadow-lg">
-        <a href="./index.php" 
-           class="bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 px-6 rounded-xl shadow-md">
-            DONE
-        </a>
-
-        <button onclick="handlePrint()" 
-                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl shadow-md">
-            PRINT REPORT
-        </button>
-
-        <button onclick="handleDownload()" 
-                class="js-download-btn bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl shadow-md">
-            DOWNLOAD (PDF)
-        </button>
-    </div>
+    </main>
+</div>
 
     <script>
         function handlePrint() {

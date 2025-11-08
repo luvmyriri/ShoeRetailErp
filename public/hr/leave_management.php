@@ -1,5 +1,20 @@
 <?php
 session_start();
+
+if (!isset($_SESSION['user_id'])) {
+    header('Location: /ShoeRetailErp/login.php');
+    exit;
+}
+
+// Role-based access control
+$userRole = $_SESSION['role'] ?? '';
+$allowedRoles = ['Admin', 'Manager', 'HR'];
+
+if (!in_array($userRole, $allowedRoles)) {
+    header('Location: /ShoeRetailErp/public/index.php?error=access_denied');
+    exit;
+}
+
 include('../../config/database.php'); // 1. INCLUDE DATABASE CONNECTION
 
 // 2. HANDLE APPROVE/REJECT ACTIONS
@@ -24,10 +39,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
             // Step 1: Update the leave request status
             // This assumes dbExecute() is defined in your database.php
-            dbExecute("UPDATE leaverequests SET Status = 'Approved', ApprovedBy = ? WHERE LeaveRequestID = ?", [$_SESSION['user_id'] ?? 1, $leaveRequestId]); 
+dbExecute("UPDATE LeaveRequests SET Status = 'Approved', ApprovedBy = ? WHERE LeaveRequestID = ?", [$_SESSION['user_id'] ?? 1, $leaveRequestId]); 
 
             // Step 2: Update the employee's leave balance
-            dbExecute("UPDATE leavebalances SET Taken = Taken + ?, Remaining = Entitlement - (Taken + ?) WHERE EmployeeID = ? AND LeaveTypeID = ?", [$daysRequested, $daysRequested, $employeeId, $leaveTypeId]);
+            dbExecute("UPDATE LeaveBalances SET Taken = Taken + ?, Remaining = Entitlement - (Taken + ?) WHERE EmployeeID = ? AND LeaveTypeID = ?", [$daysRequested, $daysRequested, $employeeId, $leaveTypeId]);
 
             // Commit transaction
             getDB()->commit();
@@ -38,19 +53,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $leaveRequestId = $_POST['leave_request_id'];
             
             // Update the leave request status
-            dbExecute("UPDATE leaverequests SET Status = 'Rejected', ApprovedBy = ? WHERE LeaveRequestID = ?", [$_SESSION['user_id'] ?? 1, $leaveRequestId]);
+dbExecute("UPDATE LeaveRequests SET Status = 'Rejected', ApprovedBy = ? WHERE LeaveRequestID = ?", [$_SESSION['user_id'] ?? 1, $leaveRequestId]);
             $successMessage = "Leave request rejected.";
             
             // NEW: Re-fetch pending requests to update the display immediately
-            $sql = "SELECT lr.LeaveRequestID, lr.EmployeeID, lr.LeaveTypeID, lr.DaysRequested, lr.RequestDate,
-                           e.FirstName, e.LastName, e.Role,
-                           d.DepartmentName,
-                           lt.LeaveTypeName
-                    FROM leaverequests lr
-                    LEFT JOIN employees e ON lr.EmployeeID = e.EmployeeID
-                    LEFT JOIN departments d ON e.DepartmentID = d.DepartmentID
-                    LEFT JOIN leavetypes lt ON lr.LeaveTypeID = lt.LeaveTypeID
-                    WHERE lr.Status = 'Pending'
+$sql = "SELECT lr.LeaveRequestID, lr.EmployeeID, lr.LeaveTypeID, lr.DaysRequested, lr.RequestDate,\r
+                           e.FirstName, e.LastName, e.Role,\r
+                           d.DepartmentName,\r
+                           lt.LeaveTypeName\r
+                    FROM LeaveRequests lr\r
+                    LEFT JOIN Employees e ON lr.EmployeeID = e.EmployeeID\r
+                    LEFT JOIN Departments d ON e.DepartmentID = d.DepartmentID\r
+                    LEFT JOIN LeaveTypes lt ON lr.LeaveTypeID = lt.LeaveTypeID\r
+                    WHERE lr.Status = 'Pending'\r
                     ORDER BY lr.RequestDate ASC";
             $pendingRequests = dbFetchAll($sql);
         }
@@ -68,15 +83,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 $pendingRequests = [];
 try {
     // UPDATED to use LEFT JOIN to prevent errors on missing employee/dept data
-    $sql = "SELECT lr.LeaveRequestID, lr.EmployeeID, lr.LeaveTypeID, lr.DaysRequested, lr.RequestDate,
-                   e.FirstName, e.LastName, e.Role,
-                   d.DepartmentName,
-                   lt.LeaveTypeName
-            FROM leaverequests lr
-            LEFT JOIN employees e ON lr.EmployeeID = e.EmployeeID
-            LEFT JOIN departments d ON e.DepartmentID = d.DepartmentID
-            LEFT JOIN leavetypes lt ON lr.LeaveTypeID = lt.LeaveTypeID
-            WHERE lr.Status = 'Pending'
+$sql = "SELECT lr.LeaveRequestID, lr.EmployeeID, lr.LeaveTypeID, lr.DaysRequested, lr.RequestDate,\r
+                   e.FirstName, e.LastName, e.Role,\r
+                   d.DepartmentName,\r
+                   lt.LeaveTypeName\r
+            FROM LeaveRequests lr\r
+            LEFT JOIN Employees e ON lr.EmployeeID = e.EmployeeID\r
+            LEFT JOIN Departments d ON e.DepartmentID = d.DepartmentID\r
+            LEFT JOIN LeaveTypes lt ON lr.LeaveTypeID = lt.LeaveTypeID\r
+            WHERE lr.Status = 'Pending'\r
             ORDER BY lr.RequestDate ASC";
     $pendingRequests = dbFetchAll($sql);
 } catch (Exception $e) {
@@ -87,17 +102,17 @@ try {
 $leaveHistory = [];
 try {
     // UPDATED to use LEFT JOIN
-    $sql = "SELECT e.FirstName, e.LastName, e.Role,
-                   lt.LeaveTypeName,
-                   d.DepartmentName,
-                   lr.StartDate, lr.EndDate, lr.Status,
-                   lb.Remaining
-            FROM leaverequests lr
-            LEFT JOIN employees e ON lr.EmployeeID = e.EmployeeID
-            LEFT JOIN departments d ON e.DepartmentID = d.DepartmentID
-            LEFT JOIN leavetypes lt ON lr.LeaveTypeID = lt.LeaveTypeID
-            LEFT JOIN leavebalances lb ON e.EmployeeID = lb.EmployeeID AND lr.LeaveTypeID = lb.LeaveTypeID
-            WHERE lr.Status IN ('Approved', 'Rejected')
+$sql = "SELECT e.FirstName, e.LastName, e.Role,\r
+                   lt.LeaveTypeName,\r
+                   d.DepartmentName,\r
+                   lr.StartDate, lr.EndDate, lr.Status,\r
+                   lb.Remaining\r
+            FROM LeaveRequests lr\r
+            LEFT JOIN Employees e ON lr.EmployeeID = e.EmployeeID\r
+            LEFT JOIN Departments d ON e.DepartmentID = d.DepartmentID\r
+            LEFT JOIN LeaveTypes lt ON lr.LeaveTypeID = lt.LeaveTypeID\r
+            LEFT JOIN LeaveBalances lb ON e.EmployeeID = lb.EmployeeID AND lr.LeaveTypeID = lb.LeaveTypeID\r
+            WHERE lr.Status IN ('Approved', 'Rejected')\r
             ORDER BY d.DepartmentName, e.FirstName";
             
     $results = dbFetchAll($sql);
@@ -115,11 +130,10 @@ try {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Leave Management | Shoe Retail ERP</title>
+  <title>Leave Management - Shoe Retail ERP</title>
 
   <link rel="stylesheet" href="../css/style.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
 
 
   <style>
@@ -167,16 +181,25 @@ try {
 <body>
 
 <?php include '../includes/navbar.php'; ?>
+<?php include '../includes/modal.php'; ?>
 
-<div class="main-wrapper">
+<div class="main-wrapper" style="margin-left: 0;">
   <main class="main-content">
 
     <div class="page-header">
         <div class="page-header-title">
-            <p class="text-muted" style="font-size:14px; margin-bottom: 0;">Branch: <strong>Main Branch</strong></p>
+            <h1>Leave Management</h1>
+            <div class="page-header-breadcrumb">
+                <a href="/ShoeRetailErp/public/index.php">Home</a> / 
+                <a href="index.php">HR</a> / 
+                Leave Management
+            </div>
+            <p class="text-muted" style="font-size:14px; margin-top: 0.5rem;">Branch: <strong>Main Branch</strong></p>
         </div>
         <div class="page-header-actions">
-            <a href="index.php" class="btn btn-outline btn-sm">← Back to HR Dashboard</a>
+            <a href="index.php" class="btn btn-outline btn-sm">
+                <i class="fas fa-arrow-left"></i> Back to HR Dashboard
+            </a>
         </div>
     </div>
     
@@ -199,10 +222,10 @@ try {
 
     <ul class="nav-tabs" id="leaveTabs" role="tablist">
       <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="requests-tab" data-bs-toggle="tab" data-bs-target="#requests" type="button" role="tab">Leave Requests</button>
+        <button class="nav-link active" id="requests-tab" onclick="switchTab('requests')" type="button" role="tab">Leave Requests</button>
       </li>
       <li class="nav-item" role="presentation">
-        <button class="nav-link" id="leaves-tab" data-bs-toggle="tab" data-bs-target="#leaves" type="button" role="tab">Leaves</button>
+        <button class="nav-link" id="leaves-tab" onclick="switchTab('leaves')" type="button" role="tab">Leaves</button>
       </li>
     </ul>
 
@@ -210,7 +233,11 @@ try {
 
       <!-- TAB 1: LEAVE REQUESTS -->
       <div class="tab-pane active show" id="requests" role="tabpanel">
-        <div class="table-responsive">
+        <div class="card">
+          <div class="card-header">
+            <h3>Pending Leave Requests</h3>
+          </div>
+          <div class="card-body table-responsive">
           <table class="table">
             <thead>
               <tr>
@@ -270,6 +297,7 @@ try {
               <?php endif; ?>
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 
@@ -299,11 +327,19 @@ try {
       <div class="tab-pane" id="leaves" role="tabpanel">
 
         <?php if (empty($leaveHistory)): ?>
-            <p class="text-muted mt-3">No leave history found.</p>
+            <div class="card">
+              <div class="card-body" style="text-align: center; padding: 2rem; color: var(--gray-500);">
+                <i class="fas fa-calendar-times" style="font-size: 2rem; display: block; margin-bottom: 1rem;"></i>
+                No leave history found.
+              </div>
+            </div>
         <?php else: ?>
             <?php foreach ($leaveHistory as $departmentName => $leaves): ?>
-                <h5 class="mt-3 mb-2 text-primary"><?php echo htmlspecialchars(strtoupper($departmentName)); ?></h5>
-                <div class="table-responsive mb-4">
+                <div class="card" style="margin-bottom: 1.5rem;">
+                  <div class="card-header">
+                    <h3><?php echo htmlspecialchars(strtoupper($departmentName)); ?></h3>
+                  </div>
+                  <div class="card-body table-responsive">
                   <table class="table">
                     <thead>
                       <tr>
@@ -344,6 +380,7 @@ try {
                       <?php endforeach; ?>
                     </tbody>
                   </table>
+                  </div>
                 </div>
             <?php endforeach; ?>
         <?php endif; ?>
@@ -395,64 +432,25 @@ try {
   </div>
 </div>
 
-<!-- Keep Bootstrap's JS for tab and modal functionality -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-<!-- 7. JAVASCRIPT TO POPULATE MODAL -->
-// Remove all the extra closing tags and merge all the code inside ONE SINGLE block:
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
-
-        // Logic for View Leave Modal
-        var viewLeaveModal = document.getElementById('viewLeaveModal');
-        if (viewLeaveModal) {
-            // NOTE: FIXING THE EVENT NAME TO 'show.bs.modal'
-            viewLeaveModal.addEventListener('show.bs.modal', function (event) {
-                var button = event.relatedTarget;
-                var employeeName = button.getAttribute('data-employee-name');
-                var leaveType = button.getAttribute('data-leave-type');
-                var startDate = button.getAttribute('data-start-date');
-                var endDate = button.getAttribute('data-end-date');
-                var status = button.getAttribute('data-status');
-                
-                var modalBody = viewLeaveModal.querySelector('.modal-body');
-                modalBody.querySelector('#modalEmployeeName').textContent = employeeName;
-                modalBody.querySelector('#modalLeaveType').textContent = leaveType;
-                modalBody.querySelector('#modalStartDate').textContent = startDate;
-                modalBody.querySelector('#modalEndDate').textContent = endDate;
-                modalBody.querySelector('#modalStatus').textContent = status;
-            });
-        }
+    // Tab switching function
+    function switchTab(tabId) {
+        // Hide all tab panes
+        document.querySelectorAll('.tab-pane').forEach(pane => {
+            pane.classList.remove('active', 'show');
+        });
         
-        // Logic for Reject Confirmation Modal
-        var rejectConfirmationModal = document.getElementById('rejectConfirmationModal');
-        if (rejectConfirmationModal) {
-            rejectConfirmationModal.addEventListener('show.bs.modal', function (event) {
-                var button = event.relatedTarget;
-                var leaveId = button.getAttribute('data-leave-id');
-                var modalInput = rejectConfirmationModal.querySelector('#modalRejectLeaveId');
-                modalInput.value = leaveId;
-            });
-        }
+        // Remove active class from all tab buttons
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('active');
+        });
         
-        // Logic for Approve Confirmation Modal
-        var approveConfirmationModal = document.getElementById('approveConfirmationModal');
-        if (approveConfirmationModal) {
-            approveConfirmationModal.addEventListener('show.bs.modal', function (event) {
-                var button = event.relatedTarget;
-                
-                var leaveId = button.getAttribute('data-leave-id');
-                var employeeId = button.getAttribute('data-employee-id');
-                var leaveTypeId = button.getAttribute('data-leave-type-id');
-                var daysRequested = button.getAttribute('data-days-requested');
-
-                approveConfirmationModal.querySelector('#modalApproveLeaveId').value = leaveId;
-                approveConfirmationModal.querySelector('#modalApproveEmployeeId').value = employeeId;
-                approveConfirmationModal.querySelector('#modalApproveLeaveTypeId').value = leaveTypeId;
-                approveConfirmationModal.querySelector('#modalApproveDaysRequested').value = daysRequested;
-            });
-        }
-    });
+        // Show the selected tab pane
+        document.getElementById(tabId).classList.add('active', 'show');
+        
+        // Add active class to the clicked tab button
+        document.getElementById(tabId + '-tab').classList.add('active');
+    }
 </script>
 
 </body>

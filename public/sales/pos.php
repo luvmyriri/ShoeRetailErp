@@ -1065,6 +1065,20 @@ foreach ($stores as $s) { if ((int)$s['id'] === $currentStoreId) { $storeLocatio
                 </div>
             </div>
 
+            <div style="padding: 0.5rem 1rem; border-bottom: 1px solid #eee;">
+                <div style="display:flex; gap:8px; align-items:center;">
+                    <div style="position:relative; flex:1;">
+                        <input type="text" id="memberInput" class="form-control" placeholder="Member # or name" style="width:100%;">
+                        <div id="customerSuggest" class="suggest-box" style="display:none;"></div>
+                    </div>
+                </div>
+                <div id="customerInfo" style="font-size:12px; color:#555; margin-top:6px;">Walk-in</div>
+                <div id="pointsHint" style="font-size:12px; color:#777; margin-top:2px;"></div>
+                <div style="display:flex; gap:8px; align-items:center; margin-top:6px;">
+                    <input type="number" id="pointsUse" class="form-control" placeholder="Points to use (₱)" min="0" value="0" style="flex:1;">
+                </div>
+            </div>
+
             <div class="cart-items-container" id="cartItems">
                 <div class="empty-cart">
                     <div class="empty-cart-icon">🛒</div>

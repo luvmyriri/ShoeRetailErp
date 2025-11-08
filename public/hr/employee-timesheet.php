@@ -25,7 +25,7 @@ $employeeID = isset($_GET['employee_id']) ? intval($_GET['employee_id']) : 0;
 if ($employeeID <= 0) die("Invalid employee ID.");
 
 // --- Fetch Employee Info (include DepartmentID for back link) ---
-$empQuery = "SELECT FirstName, LastName, DepartmentID FROM employees WHERE EmployeeID = ?";
+$empQuery = "SELECT FirstName, LastName, DepartmentID FROM Employees WHERE EmployeeID = ?";
 $employee = dbFetchOne($empQuery, [$employeeID]);
 
 if (!$employee) die("Employee not found.");
@@ -84,7 +84,7 @@ else { // weekly
 // --- Fetch Attendance ---
 $attQuery = "
     SELECT AttendanceDate, LogInTime, LogOutTime, HoursWorked, Notes
-    FROM attendance
+    FROM Attendance
     WHERE EmployeeID = ?
       AND AttendanceDate BETWEEN ? AND ?
     ORDER BY AttendanceDate ASC
@@ -102,139 +102,137 @@ foreach ($attendance as $a) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title><?= htmlspecialchars($employee['FirstName'] . ' ' . $employee['LastName']) ?> - Timesheet</title>
+<title><?= htmlspecialchars($employee['FirstName'] . ' ' . $employee['LastName']) ?> - Timesheet - Shoe Retail ERP</title>
 <link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-body {
-  font-family: "Segoe UI", Arial, sans-serif;
-  background: #f4f4f8;
-  margin: 0;
-  color: #333;
-}
-main {
-  max-width: 900px;
-  margin: 40px auto;
-  background: #fff;
-  padding: 30px;
-  border-radius: 10px;
-  box-shadow: 0 1px 6px rgba(0,0,0,0.05);
-}
-h1 { margin-bottom: 10px; }
-.breadcrumb { margin-bottom: 20px; font-size: 14px; color: #777; }
-form { margin-bottom: 20px; }
-table {
-  width: 100%; border-collapse: collapse; margin-top: 10px;
-}
-th, td {
-  padding: 10px; border-bottom: 1px solid #eee; text-align: left;
-}
-th { background: #f9f9f9; }
-tr:hover td { background: #faf7ff; }
-.back-link {
-  display: inline-block; margin-bottom: 15px;
-  text-decoration: none; background: #eaeaea; color: #333;
-  padding: 6px 12px; border-radius: 6px;
-}
-.back-link:hover { background: #ddd; }
-.summary {
-  margin-bottom: 10px; background: #f9f9ff;
-  padding: 10px 15px; border-radius: 6px;
-}
 .filter-group { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-select, input {
-  padding: 6px; border-radius: 4px; border: 1px solid #ccc;
+.nav-buttons { display: flex; justify-content: space-between; margin: 1rem 0; }
+.summary-card {
+  background: var(--gray-50);
+  padding: 1rem;
+  border-radius: var(--radius-md);
+  margin-bottom: 1rem;
 }
-button {
-  padding: 6px 10px; background: #6b46c1; color: #fff;
-  border: none; border-radius: 4px; cursor: pointer;
-}
-button:hover { background: #553c9a; }
-.nav-buttons {
-  display: flex; justify-content: space-between; margin: 10px 0 20px;
-}
-.nav-buttons a {
-  background: #efefef; padding: 6px 12px; border-radius: 6px;
-  text-decoration: none; color: #333;
-}
-.nav-buttons a:hover { background: #ddd; }
 </style>
 </head>
 <body>
 <?php include '../includes/navbar.php'; ?>
+<?php include '../includes/modal.php'; ?>
+<div class="main-wrapper" style="margin-left: 0;">
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-header-title">
+        <h1><?= htmlspecialchars($employee['FirstName'] . ' ' . $employee['LastName']) ?>'s Timesheet</h1>
+        <div class="page-header-breadcrumb">
+          <a href="/ShoeRetailErp/public/index.php">Home</a> / 
+          <a href="index.php">HR</a> / 
+          <a href="timesheets.php">Timesheets</a> / 
+          Employee Timesheet
+        </div>
+      </div>
+      <div class="page-header-actions">
+        <a href="employees.php?department_id=<?= $departmentID ?>" class="btn btn-outline btn-sm">
+          <i class="fas fa-arrow-left"></i> Back to Employees
+        </a>
+      </div>
+    </div>
 
-<main>
-  <!-- ✅ Fixed back link -->
-  <div class="breadcrumb">
-    <a href="employees.php?department_id=<?= $departmentID ?>" class="back-link">&larr; Back to Employees</a>
-  </div>
+    <!-- Filter Form -->
+    <div class="card" style="margin-bottom: 1rem;">
+      <div class="card-body">
+        <form method="get" class="filter-group">
+          <input type="hidden" name="employee_id" value="<?= $employeeID ?>">
+          <label>View:</label>
+          <select name="filter" id="filter" class="form-control" onchange="toggleInputs(this.value)" style="width: auto;">
+            <option value="daily" <?= $filterType === 'daily' ? 'selected' : '' ?>>Daily</option>
+            <option value="weekly" <?= $filterType === 'weekly' ? 'selected' : '' ?>>Weekly</option>
+            <option value="monthly" <?= $filterType === 'monthly' ? 'selected' : '' ?>>Monthly</option>
+          </select>
 
-  <h1><?= htmlspecialchars($employee['FirstName'] . ' ' . $employee['LastName']) ?>’s Timesheet</h1>
+          <input type="date" name="date" id="date" class="form-control" value="<?= $_GET['date'] ?? date('Y-m-d') ?>" <?= $filterType === 'daily' ? '' : 'style="display:none"' ?> style="width: auto;">
+          <input type="week" name="weekyear" id="weekyear" class="form-control" value="<?= $filterType === 'weekly' ? date('Y-\WW', strtotime($dateStart)) : '' ?>" <?= $filterType === 'weekly' ? '' : 'style="display:none"' ?> style="width: auto;">
+          <input type="month" name="month" id="month" class="form-control" value="<?= $_GET['month'] ?? date('Y-m') ?>" <?= $filterType === 'monthly' ? '' : 'style="display:none"' ?> style="width: auto;">
 
-  <!-- Filter Form -->
-  <form method="get" class="filter-group">
-    <input type="hidden" name="employee_id" value="<?= $employeeID ?>">
-    <label>View:</label>
-    <select name="filter" id="filter" onchange="toggleInputs(this.value)">
-      <option value="daily" <?= $filterType === 'daily' ? 'selected' : '' ?>>Daily</option>
-      <option value="weekly" <?= $filterType === 'weekly' ? 'selected' : '' ?>>Weekly</option>
-      <option value="monthly" <?= $filterType === 'monthly' ? 'selected' : '' ?>>Monthly</option>
-    </select>
+          <button type="submit" class="btn btn-primary"><i class="fas fa-filter"></i> Filter</button>
+        </form>
+      </div>
+    </div>
 
-    <input type="date" name="date" id="date" value="<?= $_GET['date'] ?? date('Y-m-d') ?>" <?= $filterType === 'daily' ? '' : 'style="display:none"' ?>>
-    <input type="week" name="weekyear" id="weekyear" value="<?= $filterType === 'weekly' ? date('Y-\WW', strtotime($dateStart)) : '' ?>" <?= $filterType === 'weekly' ? '' : 'style="display:none"' ?>>
-    <input type="month" name="month" id="month" value="<?= $_GET['month'] ?? date('Y-m') ?>" <?= $filterType === 'monthly' ? '' : 'style="display:none"' ?>>
-
-    <button type="submit">Filter</button>
-  </form>
-
-  <!-- Navigation -->
-  <div class="nav-buttons">
-    <?php if ($filterType === 'daily'): ?>
-      <a href="?employee_id=<?= $employeeID ?>&filter=daily&date=<?= $navPrev['date'] ?>">← Previous Day</a>
-      <a href="?employee_id=<?= $employeeID ?>&filter=daily&date=<?= $navNext['date'] ?>">Next Day →</a>
-    <?php elseif ($filterType === 'weekly'): ?>
-      <a href="?employee_id=<?= $employeeID ?>&filter=weekly&year=<?= $navPrev['year'] ?>&week=<?= $navPrev['week'] ?>">← Previous Week</a>
-      <a href="?employee_id=<?= $employeeID ?>&filter=weekly&year=<?= $navNext['year'] ?>&week=<?= $navNext['week'] ?>">Next Week →</a>
-    <?php else: ?>
-      <a href="?employee_id=<?= $employeeID ?>&filter=monthly&month=<?= $navPrev['month'] ?>">← Previous Month</a>
-      <a href="?employee_id=<?= $employeeID ?>&filter=monthly&month=<?= $navNext['month'] ?>">Next Month →</a>
-    <?php endif; ?>
-  </div>
-
-  <!-- Summary -->
-  <div class="summary">
-    <strong><?= ucfirst($filterType) ?> Timesheet</strong><br>
-    <?= htmlspecialchars($label) ?><br>
-    Total Hours: <strong><?= number_format($totalHours, 2) ?></strong>
-  </div>
-
-  <!-- Attendance Table -->
-  <table>
-    <thead>
-      <tr>
-        <th>Date</th>
-        <th>Log In</th>
-        <th>Log Out</th>
-        <th>Hours Worked</th>
-        <th>Notes</th>
-      </tr>
-    </thead>
-    <tbody>
-      <?php if (!empty($attendance)): ?>
-        <?php foreach ($attendance as $row): ?>
-          <tr>
-            <td><?= htmlspecialchars($row['AttendanceDate']) ?></td>
-            <td><?= htmlspecialchars($row['LogInTime']) ?></td>
-            <td><?= htmlspecialchars($row['LogOutTime']) ?></td>
-            <td><?= htmlspecialchars($row['HoursWorked']) ?></td>
-            <td><?= htmlspecialchars($row['Notes']) ?></td>
-          </tr>
-        <?php endforeach; ?>
+    <!-- Navigation -->
+    <div class="nav-buttons">
+      <?php if ($filterType === 'daily'): ?>
+        <a href="?employee_id=<?= $employeeID ?>&filter=daily&date=<?= $navPrev['date'] ?>" class="btn btn-outline">
+          <i class="fas fa-arrow-left"></i> Previous Day
+        </a>
+        <a href="?employee_id=<?= $employeeID ?>&filter=daily&date=<?= $navNext['date'] ?>" class="btn btn-outline">
+          Next Day <i class="fas fa-arrow-right"></i>
+        </a>
+      <?php elseif ($filterType === 'weekly'): ?>
+        <a href="?employee_id=<?= $employeeID ?>&filter=weekly&year=<?= $navPrev['year'] ?>&week=<?= $navPrev['week'] ?>" class="btn btn-outline">
+          <i class="fas fa-arrow-left"></i> Previous Week
+        </a>
+        <a href="?employee_id=<?= $employeeID ?>&filter=weekly&year=<?= $navNext['year'] ?>&week=<?= $navNext['week'] ?>" class="btn btn-outline">
+          Next Week <i class="fas fa-arrow-right"></i>
+        </a>
       <?php else: ?>
-        <tr><td colspan="5">No attendance records found.</td></tr>
+        <a href="?employee_id=<?= $employeeID ?>&filter=monthly&month=<?= $navPrev['month'] ?>" class="btn btn-outline">
+          <i class="fas fa-arrow-left"></i> Previous Month
+        </a>
+        <a href="?employee_id=<?= $employeeID ?>&filter=monthly&month=<?= $navNext['month'] ?>" class="btn btn-outline">
+          Next Month <i class="fas fa-arrow-right"></i>
+        </a>
       <?php endif; ?>
-    </tbody>
-  </table>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary-card">
+      <strong><?= ucfirst($filterType) ?> Timesheet</strong><br>
+      <?= htmlspecialchars($label) ?><br>
+      Total Hours: <strong><?= number_format($totalHours, 2) ?></strong>
+    </div>
+
+    <!-- Attendance Table -->
+    <div class="card">
+      <div class="card-header">
+        <h3>Attendance Records</h3>
+      </div>
+      <div class="card-body table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Log In</th>
+              <th>Log Out</th>
+              <th>Hours Worked</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php if (!empty($attendance)): ?>
+              <?php foreach ($attendance as $row): ?>
+                <tr>
+                  <td><?= htmlspecialchars($row['AttendanceDate']) ?></td>
+                  <td><?= htmlspecialchars($row['LogInTime']) ?></td>
+                  <td><?= htmlspecialchars($row['LogOutTime']) ?></td>
+                  <td><?= htmlspecialchars($row['HoursWorked']) ?></td>
+                  <td><?= htmlspecialchars($row['Notes']) ?></td>
+                </tr>
+              <?php endforeach; ?>
+            <?php else: ?>
+              <tr>
+                <td colspan="5" style="text-align: center; padding: 2rem; color: var(--gray-500);">
+                  <i class="fas fa-calendar-times" style="font-size: 2rem; display: block; margin-bottom: 1rem;"></i>
+                  No attendance records found.
+                </td>
+              </tr>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
 </main>
 
 <script>

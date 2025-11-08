@@ -398,6 +398,60 @@ a:hover {
    Sidebar
    ===================================================== */
 
+/* THEME ALIGNMENT OVERRIDES FOR POS */
+/* Buttons consistent with global theme */
+.btn { padding: 0.6rem 1rem; border-radius: var(--radius-md); font-weight:600; cursor:pointer; border:1px solid transparent; transition: all var(--transition-fast); }
+.btn-primary { background: var(--primary-color); color:#fff; }
+.btn-primary:hover { background: var(--primary-dark); color:#fff; }
+.btn-outline { background:#fff; color: var(--gray-700); border-color: var(--gray-300); }
+.btn-outline:hover { background: var(--gray-50); border-color: var(--gray-400); color: var(--gray-800); }
+.btn-success { background: var(--success-color); color:#fff; }
+.btn-secondary { background:#f3f4f6; color:#374151; border-color:#e5e7eb; }
+
+/* Ensure anchor buttons keep text color */
+a.btn, a.btn:visited { color: inherit; }
+a.btn.btn-primary, a.btn.btn-primary:hover { color:#fff; }
+a.btn.btn-outline:hover { color: var(--gray-800); }
+
+/* Card-like panels */
+.pos-wrapper { padding: var(--spacing-lg); }
+.products-panel, .cart-panel { background:#fff; border:1px solid var(--gray-200); border-left:4px solid transparent; border-radius: var(--radius-lg); box-shadow: var(--shadow-md); transition: border-left-color var(--transition-fast), box-shadow var(--transition-fast); }
+.products-panel:hover, .cart-panel:hover { border-left-color: var(--primary-color); box-shadow: 0 20px 30px -14px rgba(0,0,0,0.24), 0 8px 12px rgba(0,0,0,0.06); }
+
+/* Bottom glow for POS panels */
+.products-panel, .cart-panel { position: relative; }
+.products-panel::after, .cart-panel::after { content:""; position:absolute; left:14px; right:14px; bottom:-14px; height:14px; border-radius:50%; background: radial-gradient(closest-side, rgba(0,0,0,0.20), transparent 70%); opacity:0; transition: opacity var(--transition-fast); pointer-events:none; }
+.products-panel:hover::after, .cart-panel:hover::after { opacity:1; }
+
+/* Suggestions dropdown */
+.suggest-box { position:absolute; top:100%; left:0; right:0; margin-top:4px; background:#fff; border:1px solid var(--gray-200); border-radius: var(--radius-md); box-shadow: var(--shadow-md); z-index: var(--z-dropdown); max-height: 220px; overflow:auto; }
+.suggest-item { display:flex; justify-content:space-between; align-items:center; padding:8px 12px; font-size:13px; color: var(--gray-800); }
+.suggest-item:hover, .suggest-item.active { background: var(--gray-50); cursor:pointer; }
+.suggest-meta { font-size:12px; color: var(--gray-500); margin-left:8px; }
+.top-bar { border-bottom:1px solid var(--gray-200); padding: var(--spacing-md) var(--spacing-lg); background:#fafafa; }
+.filter-bar { border-bottom:1px solid var(--gray-200); padding: var(--spacing-md) var(--spacing-lg); background:#fff; }
+.products-container { padding: var(--spacing-md) var(--spacing-lg); }
+.cart-header { border-bottom:1px solid var(--gray-200); padding: var(--spacing-md) var(--spacing-lg); background:#fafafa; }
+.cart-summary { border-top:1px solid var(--gray-200); background:#fff; }
+
+/* Compact buttons where needed */
+.page-header-actions .btn,
+.cart-actions .btn,
+.modal .btn { padding: 0.5rem 0.9rem; font-size: 13px; }
+
+/* Product tiles */
+.product-item { border:1px solid var(--gray-200); border-radius: var(--radius-md); box-shadow: var(--shadow-sm); background:#fff; transition: transform var(--transition-fast), box-shadow var(--transition-fast); }
+.product-item:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.product-icon { font-size: 28px; }
+
+/* Table-ish sections */
+.table, .products-grid { gap: var(--spacing-md); }
+
+/* Modals */
+.modal, .modal-overlay, .modal-backdrop { backdrop-filter: saturate(120%) blur(1px); }
+.modal .modal-header { background:#fafafa; border-bottom:1px solid var(--gray-200); }
+.modal .modal-footer { background:#fff; border-top:1px solid var(--gray-200); }
+
 .sidebar {
     width: 250px;
     background-color: var(--gray-900);

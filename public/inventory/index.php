@@ -46,9 +46,13 @@ if (!in_array($userRole, $allowedRoles)) {
 
             <div class="row" style="margin-bottom: 2rem;">
                 <div class="col-md-3"><div class="stat-card"><div class="stat-icon">👡</div><div class="stat-value" id="totalProducts">0</div><div class="stat-label">Total Sandal Products</div></div></div>
-                <div class="col-md-3"><div class="stat-card"><div class="stat-icon">🎨</div><div class="stat-value" id="variantCount">0</div><div class="stat-label">Product Variants</div></div></div>
+                <div class="col-md-3"><div class="stat-card"><div class="stat-icon">🎨</div><div class="stat-value" id="variantCount">0</div><div class="stat-label">Sandal Variants</div></div></div>
                 <div class="col-md-3"><div class="stat-card"><div class="stat-icon">💰</div><div class="stat-value" id="inventoryValue">₱0</div><div class="stat-label">Total Inventory Value</div></div></div>
                 <div class="col-md-3"><div class="stat-card"><div class="stat-icon">⚠️</div><div class="stat-value" id="lowStockCount">0</div><div class="stat-label">Low Stock Alert</div></div></div>
+            </div>
+            
+            <div style="padding: 0.75rem 1rem; background: #E8F4F8; border-left: 4px solid var(--info-color); margin-bottom: 1rem; border-radius: 4px;">
+                <strong><i class="fas fa-info-circle"></i> Note:</strong> Our product line consists of <strong>Men's and Women's Sandals</strong>. Stock quantities are displayed in both <strong>boxes</strong> and <strong>pairs</strong> for easy tracking.
             </div>
 
             <ul class="nav-tabs">
@@ -108,8 +112,8 @@ if (!in_array($userRole, $allowedRoles)) {
                     <div class="card-header">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div>
-                                <h3 style="margin: 0;">Store Products</h3>
-                                <p style="margin: 0.5rem 0 0 0; font-size: 14px; color: #666;"><i class="fas fa-store"></i> <span id="currentStoreName">Loading...</span></p>
+                                <h3 style="margin: 0;">Sandal Products</h3>
+                                <p style="margin: 0.5rem 0 0 0; font-size: 14px; color: #666;"><i class="fas fa-store"></i> <span id="currentStoreName">Loading...</span> | <span style="color: var(--primary-color);">Men's & Women's Sandals</span></p>
                             </div>
                             <input type="text" id="searchProducts" placeholder="Search by SKU, Brand, or Model..." style="padding: 8px; width: 300px; border: 1px solid #ddd; border-radius: 4px;">
                         </div>
@@ -117,7 +121,7 @@ if (!in_array($userRole, $allowedRoles)) {
                     <div class="card-body">
                         <div class="table-responsive">
                             <table class="table" id="inventoryTable">
-                                <thead><tr><th>SKU</th><th>Brand/Model</th><th>Size</th><th>Color</th><th>Cost Price</th><th>Selling Price</th><th>Stock</th><th>Actions</th></tr></thead>
+                                <thead><tr><th>SKU</th><th>Brand/Model</th><th>Category</th><th>Size</th><th>Color</th><th>Cost Price</th><th>Selling Price</th><th>Stock (Boxes/Pairs)</th><th>Actions</th></tr></thead>
                                 <tbody id="inventoryBody">
                                 </tbody>
                             </table>

@@ -1,5 +1,10 @@
 <?php
+session_start();
 include('../../includes/dbconnection.php');
+if (!isset($_SESSION['user_id'])) {
+  header('Location: /ShoeRetailErp/login.php');
+  exit;
+}
 
 $id = intval($_GET['id']); // sanitize
 
@@ -41,7 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_employee'])) {
 
   // Build UPDATE query with correct column names
   $updateQuery = "
-    UPDATE employees
+    UPDATE Employees
     SET
       FirstName='$FirstName',
       LastName='$LastName',
@@ -109,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['upload_contract'])) {
 }
 
 // Fetch employee info
-$query = mysqli_query($conn, "SELECT * FROM employees WHERE EmployeeID = '$id'");
+$query = mysqli_query($conn, "SELECT * FROM Employees WHERE EmployeeID = '$id'");
 if (!$query) {
   die("Query failed: " . mysqli_error($conn));
 }
@@ -132,6 +137,7 @@ foreach (['pdf','doc','docx'] as $e) {
   <meta charset="UTF-8">
   <title>Employee Details - <?php echo val($row,'FirstName') . ' ' . val($row,'LastName'); ?></title>
   <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="stylesheet" href="../css/style.css">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
   <style>
@@ -162,6 +168,7 @@ foreach (['pdf','doc','docx'] as $e) {
   </style>
 </head>
 <body>
+<?php include '../includes/navbar.php'; ?>
 <div class="container container-xl py-4">
 
   <!-- back -->

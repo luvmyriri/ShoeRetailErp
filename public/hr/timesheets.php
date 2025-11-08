@@ -22,7 +22,7 @@ if (!in_array($userRole, $allowedRoles)) {
 require_once __DIR__ . '/../../config/database.php';
 
 // Fetch all branches
-$query = "SELECT BranchID, BranchName, Location FROM branches ORDER BY BranchName";
+$query = "SELECT BranchID, BranchName, Location FROM Branches ORDER BY BranchName";
 $branches = dbFetchAll($query);
 ?>
 <!DOCTYPE html>
@@ -30,70 +30,70 @@ $branches = dbFetchAll($query);
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Timesheets - Branches</title>
+<title>Timesheets - Shoe Retail ERP</title>
 <link rel="stylesheet" href="../css/style.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-<style>
-body {
-  font-family: "Segoe UI", Arial, sans-serif;
-  background: #f4f4f8;
-  margin: 0;
-  color: #333;
-}
-main {
-  max-width: 800px;
-  margin: 40px auto;
-  background: #fff;
-  padding: 30px;
-  border-radius: 10px;
-  box-shadow: 0 1px 6px rgba(0,0,0,0.05);
-}
-h1 {
-  color: #333;
-  margin-bottom: 20px;
-}
-ul.branch-list {
-  list-style: none;
-  padding: 0;
-}
-.branch-list li {
-  padding: 12px 15px;
-  border-bottom: 1px solid #eee;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-.branch-list li:hover {
-  background: #f9f9ff;
-}
-a.view-link {
-  text-decoration: none;
-  background: #6b46c1;
-  color: white;
-  padding: 6px 10px;
-  border-radius: 6px;
-}
-a.view-link:hover {
-  background: #5930a6;
-}
-</style>
 </head>
 <body>
 <?php include '../includes/navbar.php'; ?>
-<main>
-  <h1>Select a Branch</h1>
-  <ul class="branch-list">
-    <?php if (!empty($branches)): ?>
-      <?php foreach ($branches as $b): ?>
-        <li>
-          <span><?= htmlspecialchars($b['BranchName'] . ' (' . $b['Location'] . ')') ?></span>
-          <a class="view-link" href="departments.php?branch_id=<?= $b['BranchID'] ?>">View Departments</a>
-        </li>
-      <?php endforeach; ?>
-    <?php else: ?>
-      <li>No branches found.</li>
-    <?php endif; ?>
-  </ul>
-</main>
+<?php include '../includes/modal.php'; ?>
+<div class="main-wrapper" style="margin-left: 0;">
+  <main class="main-content">
+    <div class="page-header">
+      <div class="page-header-title">
+        <h1>Timesheets - Select Branch</h1>
+        <div class="page-header-breadcrumb">
+          <a href="/ShoeRetailErp/public/index.php">Home</a> / 
+          <a href="index.php">HR</a> / 
+          Timesheets
+        </div>
+      </div>
+      <div class="page-header-actions">
+        <a href="index.php" class="btn btn-outline btn-sm">
+          <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <h3>Select a Branch</h3>
+      </div>
+      <div class="card-body">
+        <?php if (!empty($branches)): ?>
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Branch Name</th>
+                  <th>Location</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                <?php foreach ($branches as $b): ?>
+                  <tr>
+                    <td><?= htmlspecialchars($b['BranchName']) ?></td>
+                    <td><?= htmlspecialchars($b['Location']) ?></td>
+                    <td>
+                      <a class="btn btn-sm btn-primary" href="departments.php?branch_id=<?= $b['BranchID'] ?>">
+                        <i class="fas fa-building"></i> View Departments
+                      </a>
+                    </td>
+                  </tr>
+                <?php endforeach; ?>
+              </tbody>
+            </table>
+          </div>
+        <?php else: ?>
+          <p style="text-align: center; padding: 2rem; color: var(--gray-500);">
+            <i class="fas fa-building" style="font-size: 2rem; display: block; margin-bottom: 1rem;"></i>
+            No branches found.
+          </p>
+        <?php endif; ?>
+      </div>
+    </div>
+  </main>
+</div>
 </body>
 </html>

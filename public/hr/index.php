@@ -2,6 +2,20 @@
 // 1. Start session to store flash messages
 session_start();
 
+if (!isset($_SESSION['user_id'])) {
+    header('Location: /ShoeRetailErp/login.php');
+    exit;
+}
+
+// Role-based access control
+$userRole = $_SESSION['role'] ?? '';
+$allowedRoles = ['Admin', 'Manager', 'HR'];
+
+if (!in_array($userRole, $allowedRoles)) {
+    header('Location: /ShoeRetailErp/public/index.php?error=access_denied');
+    exit;
+}
+
 // 2. Include database configuration
 require_once '../../config/database.php';
 // Check if this is a Leave Request action
@@ -13,12 +27,17 @@ if (($action === 'approve' || $action === 'reject') && is_numeric($leaveRequestI
     // Determine the new status
     $status = ($action === 'approve') ? 'Approved' : 'Rejected';
     
-    // In a real application, you would get the EmployeeID of the HR Manager 
-    // from a session variable. Using a placeholder ('HR_101') for the ID for now.
-    $approvedBy = 'HR_101'; 
+    // Get the logged-in user's ID from session
+    $approvedBy = $_SESSION['user_id'] ?? $_SESSION['employee_id'] ?? null;
+    
+    if (!$approvedBy) {
+        http_response_code(403);
+        echo json_encode(['status' => 'error', 'message' => 'You must be logged in to perform this action']);
+        exit;
+    }
     
     // Prepare SQL query to update the leave request status
-    $sql = "UPDATE leaverequests SET Status = ?, ApprovedBy = ?, ApprovalDate = CURDATE() WHERE LeaveRequestID = ?";
+    $sql = "UPDATE leaverequests SET Status = ?, ApprovedBy = ? WHERE LeaveRequestID = ?";
     
     // Execute query
     dbExecute($sql, [$status, $approvedBy, $leaveRequestId]);
@@ -235,9 +254,11 @@ try {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HR Management - Shoe Retail ERP</title>
     <link rel="stylesheet" href="../css/style.css">
+    <link rel="stylesheet" href="enhanced-modal-styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="js/hr-common.js"></script>
         <style>
-        /* Styles for the cads to show interactivity */
+        /* HR-specific styles */
         .clickable-card {
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
@@ -247,309 +268,37 @@ try {
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
 
-        /* Modal Styles */
-        .modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000; /* Ensure modal is on top of everything */
-        }
-
-        .modal-content {
-            background-color: #fff;
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            width: 95%; /* Increased width for table */
-            max-width: 800px; /* Wider modal for the table */
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-            transform: scale(0.95);
-            transition: transform 0.3s ease-out;
-        }
-        
-        /* Smaller modal for department breakdown and payroll */
-        #employeeDirectoryModal .modal-content, 
-        #payrollModal .modal-content,
-        #CreateEmployeeModal .modal-content { /* <-- ADDED FOR SIMPLE MODAL */
-            max-width: 500px; 
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
-            margin-bottom: 15px;
-        }
-
-        .modal-title {
-            margin: 0;
-            font-size: 1.25rem;
-            font-weight: 700;
-            color: #333;
-        }
-
-        .modal-body {
-            /* Keep it blank as requested, add minimal padding */
-            min-height: 100px;
-            padding: 10px 0;
-            color: #666;
-        }
-        
-        .modal-footer {
-            border-top: 1px solid #eee;
-            padding-top: 15px;
-            text-align: right;
-        }
-
-        .close-btn {
-            background: none;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: #999;
-            transition: color 0.2s;
-        }
-        .close-btn:hover {
-            color: #333;
-        }
-
-        /* Basic styling for utility classes if not in style.css */
-        .btn-secondary {
-            background-color: #ccc;
-            color: #333;
-            border: 1px solid #bbb;
-            padding: 0.5rem 1rem;
-            border-radius: 0.5rem;
-            cursor: pointer;
-            font-weight: 600;
-        }
-        
-        /* Table-specific styles for the modal */
-        .modal-table-container {
-            max-height: 400px; /* Limit height for scrollability if many records */
+        /* HR Dashboard tables */
+        .hr-table-container {
+            max-height: 400px;
             overflow-y: auto;
             margin-bottom: 1rem;
         }
 
-        .modal-table {
+        .hr-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 12px;
+            font-size: 13px;
         }
 
-        .modal-table th, .modal-table td {
+        .hr-table th, .hr-table td {
             padding: 0.75rem;
             text-align: left;
             border-bottom: 1px solid #f0f0f0;
         }
 
-        .modal-table th {
-            background-color: #f9fafb;
+        .hr-table th {
+            background-color: var(--gray-50);
             font-weight: 600;
-            color: #666;
-            position: sticky; /* Sticky header for scrolling */
+            color: var(--gray-700);
+            position: sticky;
             top: 0;
             z-index: 10;
         }
 
-        .modal-table tr:last-child td {
+        .hr-table tr:last-child td {
             border-bottom: none;
         }
-        
-        /* Center the employee count/payroll amount for the new modals */
-        #employeeDirectoryModal .modal-table .count-col,
-        #payrollModal .modal-table .amount-col {
-            text-align: right;
-            font-weight: 700;
-        }
-
-        
-        /* Styles for the new Add Employee Modal */
-        #addEmployeeModal .modal-content {
-            max-width: 800px; /* Wider modal for the form */
-        }
-        
-        .form-step {
-            display: none; /* Hide all steps by default */
-        }
-        
-        .form-step.active-step {
-            display: block; /* Show the active step */
-        }
-        
-        .form-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.25rem;
-        }
-        
-        .form-grid-col-3 {
-            display: grid;
-            grid-template-columns: 1fr 1fr 1fr;
-            gap: 1.25rem;
-        }
-        
-        .form-group {
-            display: flex;
-            flex-direction: column;
-        }
-        
-        .form-group label {
-            font-size: 13px;
-            font-weight: 600;
-            color: #555;
-            margin-bottom: 0.5rem;
-        }
-        
-        .form-group input,
-        .form-group select {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid #ddd;
-            border-radius: 0.5rem;
-            font-size: 14px;
-            box-sizing: border-box; /* Important for padding */
-        }
-        
-        .form-fieldset {
-            border: 1px solid #e0e0e0;
-            border-radius: 0.5rem;
-            padding: 1rem;
-            margin-bottom: 1.5rem;
-        }
-        
-        .form-fieldset legend {
-            font-size: 14px;
-            font-weight: 700;
-            color: #714B67;
-            padding: 0 0.5rem;
-            margin-left: 0.5rem;
-        }
-
-        #addEmployeeModal .modal-body {
-            max-height: 65vh; /* Set a max height (65% of viewport height) */
-            overflow-y: auto; /* Enable vertical scrolling */
-            padding-left: 1rem;  /* Add some breathing room */
-            padding-right: 1rem;
-        }
-        /* ADD THIS NEW STYLE */
-        .btn:disabled,
-        button:disabled {
-            background-color: #cccccc;
-            color: #666666;
-            cursor: not-allowed;
-            opacity: 0.7;
-            border: 1px solid #bbb;
-        }
-        
-        /* This specifically overrides the green submit button's color when disabled */
-        #form-submit-btn:disabled {
-             background-color: #cccccc;
-        }
-        /* --- ADD THIS --- */
-        .form-group select:disabled {
-            background-color: #f5f5f5;
-            cursor: not-allowed;
-        }
-
-        .form-group {
-          margin-bottom: 14px;
-        }
-
-        .form-group label {
-          display: block;
-          font-size: 13px;
-          font-weight: 600;
-          color: #444;
-          margin-bottom: 5px;
-        }
-
-        .form-group input {
-          width: 100%;
-          padding: 8px 10px;
-          border: 1px solid #ddd;
-          border-radius: 6px;
-          font-size: 13px;
-          transition: all 0.2s ease;
-        }
-
-        .form-group input:focus {
-          border-color: #714B67;
-          box-shadow: 0 0 0 2px rgba(113, 75, 103, 0.15);
-          outline: none;
-        }
-
-        .form-grid-col-2 {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1.25rem;
-        }
-        
-        /* ✅ --- NEW: Custom Alert Modal Styles --- */
-        #alertModal .modal-content {
-            max-width: 400px;
-            text-align: center;
-            padding: 2rem 2.5rem;
-        }
-        
-        .alert-modal-icon {
-            font-size: 4rem; /* 64px */
-            margin-bottom: 1.5rem;
-        }
-        
-        .alert-modal-icon.success {
-            color: #28a745; /* Green */
-        }
-        
-        .alert-modal-icon.error {
-            color: #dc3545; /* Red */
-        }
-        
-        #alertModalTitle {
-            font-size: 1.75rem; /* 28px */
-            font-weight: 700;
-            margin-bottom: 0.5rem;
-            color: #333;
-        }
-        
-        #alertModalMessage {
-            font-size: 1rem; /* 16px */
-            color: #666;
-            margin-bottom: 2rem;
-        }
-        
-        /* New Button Styles */
-        .btn-success {
-            background-color: #28a745;
-            border: none;
-            color: white;
-            padding: 0.75rem 1.5rem;
-            font-size: 1rem;
-        }
-        .btn-success:hover {
-            background-color: #218838;
-        }
-        
-        .btn-danger {
-            background-color: #dc3545;
-            border: none;
-            color: white;
-            padding: 0.75rem 1.5rem;
-            font-size: 1rem;
-        }
-        .btn-danger:hover {
-            background-color: #c82333;
-        }
-        /* --- END: Custom Alert Modal Styles --- */
-            
-    </style>
     </style>
 </head>
 <body>
@@ -558,18 +307,13 @@ try {
     <?php if ($flashSuccess): ?>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            // We use the new showCustomAlert function for session messages too
-            if (typeof showCustomAlert === 'function') {
-                showCustomAlert('<?php echo addslashes($flashSuccess); ?>', 'success');
-            } else {
-                // Fallback alert if something is still wrong
-                alert('<?php echo addslashes($flashSuccess); ?>');
-            }
+            showModal('Success', '<?php echo addslashes($flashSuccess); ?>', 'success');
         });
     </script>
     <?php endif; ?>
     
     <?php include '../includes/navbar.php'; ?>
+    <?php include '../includes/modal.php'; ?>
     <div class="main-wrapper" style="margin-left: 0;">
         <main class="main-content">
             <div class="page-header">
@@ -578,7 +322,8 @@ try {
                     <div class="page-header-breadcrumb"><a href="/ShoeRetailErp/public/index.php">Home</a> / HR Management</div>
                 </div>
                 <div class="page-header-actions">
-<button class="btn btn-primary" onclick="openModal('CreateEmployeeModal')"><i class="fas fa-plus"></i> Add Employee</button>                    <button class="btn btn-secondary"><i class="fas fa-download"></i> Export</button>
+<button class="btn btn-primary" onclick="openModal('CreateEmployeeModal')"><i class="fas fa-plus"></i> Add Employee</button>
+<button class="btn btn-secondary" onclick="window.location.href='reports.php'"><i class="fas fa-download"></i> Export</button>
                 </div>
             </div>
 
@@ -689,17 +434,28 @@ try {
                         </div>
                         <div class="card-body" style="padding: 1rem 0.75rem;">
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
-                                <button class="btn btn-primary" onclick="openModal('CreateEmployeeModal')" 
-                                     style="background-color: #714B67; color: white; border: none; padding: 0.75rem; border-radius: 0.5rem; font-size: 12px; font-weight: 600; cursor: pointer;">
+                                <button onclick="openModal('CreateEmployeeModal')" 
+                                        style="background-color: #7C3AED; color: white; border: none; padding: 0.75rem; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.2s;" 
+                                        onmouseover="this.style.backgroundColor='#6D28D9'" 
+                                        onmouseout="this.style.backgroundColor='#7C3AED'">
                                     <i class="fas fa-user-plus"></i> Add Employee
                                 </button>
-                                <button class="btn btn-secondary" style="background-color: #F5B041; color: #333; border: none; padding: 0.75rem; border-radius: 0.5rem; font-size: 12px; font-weight: 600; cursor: pointer;">
+                                <button onclick="window.location.href='timesheets.php'" 
+                                        style="background-color: #F59E0B; color: white; border: none; padding: 0.75rem; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.2s;" 
+                                        onmouseover="this.style.backgroundColor='#D97706'" 
+                                        onmouseout="this.style.backgroundColor='#F59E0B'">
                                     <i class="fas fa-clock"></i> Timesheets
                                 </button>
-                                <button class="btn btn-secondary" style="background-color: #F5B041; color: #333; border: none; padding: 0.75rem; border-radius: 0.5rem; font-size: 12px; font-weight: 600; cursor: pointer;">
+                                <button onclick="window.location.href='payroll_management.php'" 
+                                        style="background-color: #F59E0B; color: white; border: none; padding: 0.75rem; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.2s;" 
+                                        onmouseover="this.style.backgroundColor='#D97706'" 
+                                        onmouseout="this.style.backgroundColor='#F59E0B'">
                                     <i class="fas fa-money-bill"></i> Process Payroll
                                 </button>
-                                <button class="btn btn-secondary" style="background-color: #F5B041; color: #333; border: none; padding: 0.75rem; border-radius: 0.5rem; font-size: 12px; font-weight: 600; cursor: pointer;">
+                                <button onclick="window.location.href='leave_management.php'" 
+                                        style="background-color: #F59E0B; color: white; border: none; padding: 0.75rem; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; transition: all 0.2s;" 
+                                        onmouseover="this.style.backgroundColor='#D97706'" 
+                                        onmouseout="this.style.backgroundColor='#F59E0B'">
                                     <i class="fas fa-tasks"></i> Leave Requests
                                 </button>
                             </div>
@@ -708,87 +464,79 @@ try {
                 </div>
             </div>
 
-                   <div id="CreateEmployeeModal" class="modal-overlay" style="display: none;">
-  <div class="modal-content">
-    <div class="modal-header">
-      <h2 class="modal-title">Add New Employee</h2>
-      <button class="close-btn" onclick="closeModal('CreateEmployeeModal')" aria-label="Close Modal">&times;</button>
+                   <div id="CreateEmployeeModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; overflow: auto;">
+  <div style="background: white; padding: 1.5rem; border-radius: 8px; width: 90%; max-width: 500px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); margin: auto; max-height: 90vh; overflow-y: auto;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+      <h3 style="margin: 0; font-size: 18px;">Add New Employee</h3>
+      <button onclick="closeModal('CreateEmployeeModal')" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 0; width: 24px; height: 24px;">&times;</button>
     </div>
 
-    <div class="modal-body">
-        <form id="addEmployeeFormSimple" action="index.php" method="POST">
-        
-<div class="form-grid-col-2"> 
-  <div class="form-group">
-    <label>First Name:</label>
-    <input type="text" name="FirstName" placeholder="First Name" required
-           oninput="this.value = this.value
-             .replace(/[^A-Za-z\s]/g, '')        // remove non-letters/spaces
-             .replace(/\b\w/g, c => c.toUpperCase())"> <!-- capitalize -->
-  </div>
-
-  <div class="form-group">
-    <label>Last Name:</label>
-    <input type="text" name="LastName" placeholder="Last Name" required
-           oninput="this.value = this.value
-             .replace(/[^A-Za-z\s]/g, '')        
-             .replace(/\b\w/g, c => c.toUpperCase())">
-  </div>
-</div>
-
-
-
-     <div class="form-group">
-      <label for="Department_simple">Department:</label>
-      <select id="Department_simple" name="Department" required>
-        <option value="">Select Department...</option>
-        <option value="Human Resource">Human Resource</option>
-        <option value="Sales and Customer Relation Management">Sales and Customer Relation Management</option>
-        <option value="Inventory">Inventory</option>
-        <option value="Procurement">Procurement</option>
-        <option value="Accounting">Accounting</option>
-      </select>
-    </div>
-
-    <div class="form-group">
-      <label for="Role_simple">Assigned Role:</label>
-      <select id="Role_simple" name="Role" required>
-        <option value="">Select Role...</option>
-        <optgroup label="Inventory Management">
-          <option value="Inventory Manager">Inventory Manager</option>
-          <option value="Inventory Encoder">Inventory Encoder</option>
-        </optgroup>
-        <optgroup label="Sales and Customer Management">
-          <option value="Cashier">Cashier</option>
-          <option value="Sales Manager">Sales Manager</option>
-          <option value="Customer Service">Customer Service</option>
-        </optgroup>
-        <optgroup label="Procurement">
-          <option value="Procurement Manager">Procurement Manager</option>
-        </optgroup>
-        <optgroup label="Accounting">
-          <option value="Accountant">Accountant</option>
-        </optgroup>
-        <optgroup label="Human Resource (HR)">
-          <option value="HR Manager">HR Manager</option>
-        </optgroup>
-        <optgroup label="General Admin">
-          <option value="Admin">Admin</option>
-        </optgroup>
-      </select>
-    </div>
-        
-        <div class="form-group">
-          <label>Email:</label>
-          <input type="email" name="Email" placeholder="Enter email address" required>
+    <form id="addEmployeeFormSimple" action="index.php" method="POST" style="display: flex; flex-direction: column; gap: 0.75rem;">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;">
+        <div>
+          <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 0.25rem;">First Name</label>
+          <input type="text" name="FirstName" placeholder="First Name" required class="form-control" style="padding: 0.5rem; font-size: 14px;"
+                 oninput="this.value = this.value.replace(/[^A-Za-z\s]/g, '').replace(/\b\w/g, c => c.toUpperCase())">
         </div>
-
-        <div class="modal-footer" style="margin-top: 1rem; text-align: right;">
-          <button type="button" class="btn btn-secondary" onclick="closeModal('CreateEmployeeModal')">Back</button>
-          <button type="submit" class="btn btn-primary" style="background-color: #714B67; border: none;">Add Employee</button>
+        <div>
+          <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 0.25rem;">Last Name</label>
+          <input type="text" name="LastName" placeholder="Last Name" required class="form-control" style="padding: 0.5rem; font-size: 14px;"
+                 oninput="this.value = this.value.replace(/[^A-Za-z\s]/g, '').replace(/\b\w/g, c => c.toUpperCase())">
         </div>
-      </form>
-    </div>
+      </div>
+
+
+
+      <div>
+        <label for="Department_simple" style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 0.25rem;">Department</label>
+        <select id="Department_simple" name="Department" required class="form-control" style="padding: 0.5rem; font-size: 14px;">
+          <option value="">Select Department...</option>
+          <option value="Human Resource">Human Resource</option>
+          <option value="Sales and Customer Relation Management">Sales and Customer Relation Management</option>
+          <option value="Inventory">Inventory</option>
+          <option value="Procurement">Procurement</option>
+          <option value="Accounting">Accounting</option>
+        </select>
+      </div>
+
+      <div>
+        <label for="Role_simple" style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 0.25rem;">Assigned Role</label>
+        <select id="Role_simple" name="Role" required class="form-control" style="padding: 0.5rem; font-size: 14px;">
+          <option value="">Select Role...</option>
+          <optgroup label="Inventory Management">
+            <option value="Inventory Manager">Inventory Manager</option>
+            <option value="Inventory Encoder">Inventory Encoder</option>
+          </optgroup>
+          <optgroup label="Sales and Customer Management">
+            <option value="Cashier">Cashier</option>
+            <option value="Sales Manager">Sales Manager</option>
+            <option value="Customer Service">Customer Service</option>
+          </optgroup>
+          <optgroup label="Procurement">
+            <option value="Procurement Manager">Procurement Manager</option>
+          </optgroup>
+          <optgroup label="Accounting">
+            <option value="Accountant">Accountant</option>
+          </optgroup>
+          <optgroup label="Human Resource (HR)">
+            <option value="HR Manager">HR Manager</option>
+          </optgroup>
+          <optgroup label="General Admin">
+            <option value="Admin">Admin</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <div>
+        <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 0.25rem;">Email</label>
+        <input type="email" name="Email" placeholder="Enter email address" required class="form-control" style="padding: 0.5rem; font-size: 14px;">
+      </div>
+
+      <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+        <button type="button" class="btn btn-outline" onclick="closeModal('CreateEmployeeModal')" style="flex: 1; padding: 0.5rem; font-size: 14px;">Cancel</button>
+        <button type="submit" class="btn btn-primary" style="flex: 1; padding: 0.5rem; font-size: 14px;">Add Employee</button>
+      </div>
+    </form>
   </div>
 </div>
 
@@ -802,53 +550,52 @@ function closeModal(id) {
 }
 </script>
 
+            <!-- Pending Approvals Section -->
             <div class="row" style="margin-bottom: 1rem;">
                 <div class="col-md-12" style="margin-bottom: 0.75rem;">
                     <div class="card">
                         <div class="card-header" style="padding: 0.75rem; border-bottom: 1px solid #eee;">
                             <h3 style="margin: 0; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">⏳ Pending Approvals</h3>
                         </div>
-                        <div class="card-body" style="padding: 1rem 0.75rem;">
-                            <div style="font-size: 12px;">
-                                <table style="width: 100%; border-collapse: collapse;">
-                                    <thead style="background-color: #f9fafb; border-bottom: 1px solid #eee;">
-                                        <tr>
-                                            <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #666;">Request Type</th>
-                                            <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #666;">Employee</th>
-                                            <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: #666;">Submitted</th>
-                                            <th style="padding: 0.75rem; text-align: right; font-weight: 600; color: #666;">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        <tr style="border-bottom: 1px solid #eee;">
-                                            <td style="padding: 0.75rem;"><span style="background-color: #E8F4F8; color: #00A3E0; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-weight: 600;">Leave Request</span></td>
-                                            <td style="padding: 0.75rem;">Maria Santos</td>
-                                            <td style="padding: 0.75rem; color: #999;">Oct 20, 2025</td>
-                                            <td style="padding: 0.75rem; text-align: right;">
-                                           
-                                            </td>
-                                        </tr>
-                                        <tr style="border-bottom: 1px solid #eee;">
-                                            <td style="padding: 0.75rem;"><span style="background-color: #FEF3C7; color: #B45309; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-weight: 600;">Timesheet</span></td>
-                                            <td style="padding: 0.75rem;">John Reyes</td>
-                                            <td style="padding: 0.75rem; color: #999;">Oct 19, 2025</td>
-                                            <td style="padding: 0.75rem; text-align: right;">
-                                                <button class="action-button-approve">✓ Approve</button>
-                                                <button class="action-button-reject">✕ Reject</button>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td style="padding: 0.75rem;"><span style="background-color: #DDD6FE; color: #6366F1; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-weight: 600;">Role Assignment</span></td>
-                                            <td style="padding: 0.75rem;">Ana Flores</td>
-                                            <td style="padding: 0.75rem; color: #999;">Oct 21, 2025</td>
-                                            <td style="padding: 0.75rem; text-align: right;">
-                                                <button class="action-button-approve">✓ Approve</button>
-                                                <button class="action-button-reject">✕ Reject</button>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                            </div>
+                        <div class="card-body table-responsive">
+                            <?php if (empty($pendingLeaveData)): ?>
+                                <div style="text-align: center; padding: 2rem; color: var(--gray-500);">
+                                    <i class="fas fa-check-circle" style="font-size: 2rem; margin-bottom: 0.5rem; opacity: 0.5;"></i>
+                                    <p style="margin: 0;">No pending approvals</p>
+                                </div>
+                            <?php else: ?>
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Request Type</th>
+                                        <th>Employee</th>
+                                        <th>Department</th>
+                                        <th>Submitted</th>
+                                        <th style="text-align: right;">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($pendingLeaveData as $leave): ?>
+                                    <tr>
+                                        <td><span class="badge" style="background-color: var(--info-bg); color: var(--primary-color); padding: 0.25rem 0.5rem;"><?php echo htmlspecialchars($leave['LeaveTypeName']); ?></span></td>
+                                        <td><?php echo htmlspecialchars($leave['EmployeeName']); ?></td>
+                                        <td style="color: var(--gray-500);"><?php echo htmlspecialchars($leave['Department']); ?></td>
+                                        <td style="color: var(--gray-500);"><?php echo date('M d, Y', strtotime($leave['RequestDate'])); ?></td>
+                                        <td style="text-align: right;">
+                                            <button class="btn btn-sm btn-success" style="margin-right: 0.25rem;" 
+                                                    onclick="handleLeaveAction('approve', <?php echo $leave['LeaveRequestID']; ?>)">
+                                                <i class="fas fa-check"></i> Approve
+                                            </button>
+                                            <button class="btn btn-sm btn-danger" 
+                                                    onclick="handleLeaveAction('reject', <?php echo $leave['LeaveRequestID']; ?>)">
+                                                <i class="fas fa-times"></i> Reject
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
@@ -932,199 +679,187 @@ function closeModal(id) {
     </a>
 </div>
 
-    <div id="employeeDirectoryModal" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Employee Department Breakdown</h2>
-                <button class="close-btn" onclick="closeModal('employeeDirectoryModal')" aria-label="Close Modal">&times;</button>
+    <div id="employeeDirectoryModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; overflow: auto;">
+        <div style="background: white; padding: 1.5rem; border-radius: 8px; width: 90%; max-width: 600px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); margin: auto; max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0; font-size: 18px;">Employee Department Breakdown</h3>
+                <button onclick="closeModal('employeeDirectoryModal')" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 0; width: 24px; height: 24px;">&times;</button>
             </div>
-            <div class="modal-body">
-                <div class="modal-table-container">
-                    <table class="modal-table">
-                        <thead>
-                            <tr>
-                                <th>Department</th>
-                                <th style="text-align: right;">Number of Employees</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (!empty($departmentData)): ?>
-                                <?php foreach ($departmentData as $row): ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($row['Department'] ?? 'Unassigned'); ?></td>
-                                        <td style="text-align: right;"><?php echo $row['employeeCount']; ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table class="table" style="margin: 0; font-size: 14px;">
+                    <thead>
+                        <tr>
+                            <th>Department</th>
+                            <th style="text-align: right;">Number of Employees</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!empty($departmentData)): ?>
+                            <?php foreach ($departmentData as $row): ?>
                                 <tr>
-                                    <td colspan="2" style="text-align: center;">No department data found.</td>
+                                    <td><?php echo htmlspecialchars($row['Department'] ?? 'Unassigned'); ?></td>
+                                    <td style="text-align: right;"><?php echo $row['employeeCount']; ?></td>
                                 </tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="2" style="text-align: center; padding: 2rem;">No department data found.</td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('employeeDirectoryModal')">Close</button>
+            <div style="margin-top: 1rem; text-align: right;">
+                <button class="btn btn-outline" onclick="closeModal('employeeDirectoryModal')" style="padding: 0.5rem 1rem; font-size: 14px;">Close</button>
             </div>
         </div>
     </div>
     
-    <div id="leaveModal" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Employees Currently On Leave</h2>
-                <button class="close-btn" onclick="closeModal('leaveModal')" aria-label="Close Modal">&times;</button>
+    <div id="leaveModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; overflow: auto;">
+        <div style="background: white; padding: 1.5rem; border-radius: 8px; width: 90%; max-width: 800px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); margin: auto; max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0; font-size: 18px;">Employees Currently On Leave</h3>
+                <button onclick="closeModal('leaveModal')" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 0; width: 24px; height: 24px;">&times;</button>
             </div>
-            <div class="modal-body">
-                <div class="modal-table-container">
-                    <table class="modal-table">
-                        <thead>
-                            <tr>
-                                <th>Name of Employee</th>
-                                <th>Department</th>
-                                <th>Role</th>
-                                <th>Type of Leave</th>
-                                <th>Date(s)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (!empty($onLeaveData)): ?>
-                                <?php foreach ($onLeaveData as $leave): ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($leave['EmployeeName']); ?></td>
-                                        <td><?php echo htmlspecialchars($leave['Department'] ?? 'N/A'); ?></td>
-                                        <td><?php echo htmlspecialchars($leave['Role'] ?? 'N/A'); ?></td>
-                                        <td><?php echo htmlspecialchars($leave['LeaveTypeName']); ?></td>
-                                        <td>
-                                            <?php 
-                                                // Format date range
-                                                echo date("M j, Y", strtotime($leave['StartDate'])); 
-                                                if ($leave['StartDate'] != $leave['EndDate']) {
-                                                    echo " - " . date("M j, Y", strtotime($leave['EndDate']));
-                                                }
-                                            ?>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table class="table" style="margin: 0; font-size: 14px;">
+                    <thead>
+                        <tr>
+                            <th>Name of Employee</th>
+                            <th>Department</th>
+                            <th>Role</th>
+                            <th>Type of Leave</th>
+                            <th>Date(s)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!empty($onLeaveData)): ?>
+                            <?php foreach ($onLeaveData as $leave): ?>
                                 <tr>
-                                    <td colspan="5" style="text-align: center;">No employees are on approved leave.</td>
+                                    <td><?php echo htmlspecialchars($leave['EmployeeName']); ?></td>
+                                    <td><?php echo htmlspecialchars($leave['Department'] ?? 'N/A'); ?></td>
+                                    <td><?php echo htmlspecialchars($leave['Role'] ?? 'N/A'); ?></td>
+                                    <td><?php echo htmlspecialchars($leave['LeaveTypeName']); ?></td>
+                                    <td>
+                                        <?php 
+                                            // Format date range
+                                            echo date("M j, Y", strtotime($leave['StartDate'])); 
+                                            if ($leave['StartDate'] != $leave['EndDate']) {
+                                                echo " - " . date("M j, Y", strtotime($leave['EndDate']));
+                                            }
+                                        ?>
+                                    </td>
                                 </tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="5" style="text-align: center; padding: 2rem;">No employees are on approved leave.</td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('leaveModal')">Close</button>
+            <div style="margin-top: 1rem; text-align: right;">
+                <button class="btn btn-outline" onclick="closeModal('leaveModal')" style="padding: 0.5rem 1rem; font-size: 14px;">Close</button>
             </div>
         </div>
     </div>
 
-   <div id="pendingLeaveModal" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Pending Leave Requests</h2>
-                <button class="close-btn" onclick="closeModal('pendingLeaveModal')" aria-label="Close Modal">&times;</button>
+   <div id="pendingLeaveModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; overflow: auto;">
+        <div style="background: white; padding: 1.5rem; border-radius: 8px; width: 90%; max-width: 900px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); margin: auto; max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0; font-size: 18px;">Pending Leave Requests</h3>
+                <button onclick="closeModal('pendingLeaveModal')" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 0; width: 24px; height: 24px;">&times;</button>
             </div>
-            <div class="modal-body">
-                <div class="modal-table-container">
-                    <table class="modal-table">
-                        <thead>
-                            <tr>
-                                <th>Employee</th>
-                                <th>Department</th>
-                                <th>Role</th> <th>Leave Type</th>
-                                <th>Date(s)</th>
-                                <th>Submitted</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if (!empty($pendingLeaveData)): ?>
-                                <?php foreach ($pendingLeaveData as $request): ?>
-                                    <tr>
-                                        <td><?php echo htmlspecialchars($request['EmployeeName']); ?></td>
-                                        
-                                        <td><?php echo htmlspecialchars($request['Department'] ?? 'N/A'); ?></td>
-                                        
-                                        <td><?php echo htmlspecialchars($request['Role'] ?? 'N/A'); ?></td>
-                                        
-                                        <td><?php echo htmlspecialchars($request['LeaveTypeName']); ?></td>
-                                        
-                                        <td>
-                                            <?php 
-                                                echo date("M j, Y", strtotime($request['StartDate'])); 
-                                                if ($request['StartDate'] != $request['EndDate']) {
-                                                    echo " - " . date("M j, Y", strtotime($request['EndDate']));
-                                                }
-                                            ?>
-                                        </td>
-                                        
-                                        <td><?php echo date("M j, Y", strtotime($request['RequestDate'])); ?></td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            <?php else: ?>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table class="table" style="margin: 0; font-size: 14px;">
+                    <thead>
+                        <tr>
+                            <th>Employee</th>
+                            <th>Department</th>
+                            <th>Role</th>
+                            <th>Leave Type</th>
+                            <th>Date(s)</th>
+                            <th>Submitted</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (!empty($pendingLeaveData)): ?>
+                            <?php foreach ($pendingLeaveData as $request): ?>
                                 <tr>
-                                    <td colspan="6" style="text-align: center;">No pending leave requests.</td>
+                                    <td><?php echo htmlspecialchars($request['EmployeeName']); ?></td>
+                                    <td><?php echo htmlspecialchars($request['Department'] ?? 'N/A'); ?></td>
+                                    <td><?php echo htmlspecialchars($request['Role'] ?? 'N/A'); ?></td>
+                                    <td><?php echo htmlspecialchars($request['LeaveTypeName']); ?></td>
+                                    <td>
+                                        <?php 
+                                            echo date("M j, Y", strtotime($request['StartDate'])); 
+                                            if ($request['StartDate'] != $request['EndDate']) {
+                                                echo " - " . date("M j, Y", strtotime($request['EndDate']));
+                                            }
+                                        ?>
+                                    </td>
+                                    <td><?php echo date("M j, Y", strtotime($request['RequestDate'])); ?></td>
                                 </tr>
-                            <?php endif; ?>
-                        </tbody>
-                    </table>
-                </div>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="6" style="text-align: center; padding: 2rem;">No pending leave requests.</td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('pendingLeaveModal')">Close</button>
+            <div style="margin-top: 1rem; text-align: right;">
+                <button class="btn btn-outline" onclick="closeModal('pendingLeaveModal')" style="padding: 0.5rem 1rem; font-size: 14px;">Close</button>
             </div>
         </div>
     </div>
 
-    <div id="payrollModal" class="modal-overlay" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 class="modal-title">Monthly Payroll Breakdown</h2>
-                <button class="close-btn" onclick="closeModal('payrollModal')" aria-label="Close Modal">&times;</button>
+    <div id="payrollModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; align-items: center; justify-content: center; overflow: auto;">
+        <div style="background: white; padding: 1.5rem; border-radius: 8px; width: 90%; max-width: 600px; box-shadow: 0 4px 20px rgba(0,0,0,0.2); margin: auto; max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 style="margin: 0; font-size: 18px;">Monthly Payroll Breakdown</h3>
+                <button onclick="closeModal('payrollModal')" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 0; width: 24px; height: 24px;">&times;</button>
             </div>
-            <div class="modal-body">
-                <div class="modal-table-container">
-                    <table class="modal-table">
-                        <thead>
-                            <tr>
-                                <th>Department</th>
-                                <th style="text-align: right;">Monthly Payroll</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr>
-                                <td>Human Resource</td>
-                                <td class="amount-col">₱0.00</td>
-                            </tr>
-                            <tr>
-                                <td>Sales and Customer Relation Management</td>
-                                <td class="amount-col">₱0.00</td>
-                            </tr>
-                            <tr>
-                                <td>Inventory</td>
-                                <td class="amount-col">₱0.00</td>
-                            </tr>
-                            <tr>
-                                <td>Procurement</td>
-                                <td class="amount-col">₱0.00</td>
-                            </tr>
-                            <tr>
-                                <td>Accounting</td>
-                                <td class="amount-col">₱0.00</td>
-                            </tr>
-                            <tr style="border-top: 2px solid #333;">
-                                <td><strong style="color: #333;">GRAND TOTAL</strong></td>
-                                <td class="amount-col"><strong style="color: #333;">₱156,400</strong></td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
+            <div style="max-height: 400px; overflow-y: auto;">
+                <table class="table" style="margin: 0; font-size: 14px;">
+                    <thead>
+                        <tr>
+                            <th>Department</th>
+                            <th style="text-align: right;">Monthly Payroll</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>Human Resource</td>
+                            <td style="text-align: right;">₱0.00</td>
+                        </tr>
+                        <tr>
+                            <td>Sales and Customer Relation Management</td>
+                            <td style="text-align: right;">₱0.00</td>
+                        </tr>
+                        <tr>
+                            <td>Inventory</td>
+                            <td style="text-align: right;">₱0.00</td>
+                        </tr>
+                        <tr>
+                            <td>Procurement</td>
+                            <td style="text-align: right;">₱0.00</td>
+                        </tr>
+                        <tr>
+                            <td>Accounting</td>
+                            <td style="text-align: right;">₱0.00</td>
+                        </tr>
+                        <tr style="border-top: 2px solid #333;">
+                            <td><strong>GRAND TOTAL</strong></td>
+                            <td style="text-align: right;"><strong>₱156,400</strong></td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-secondary" onclick="closeModal('payrollModal')">Close</button>
+            <div style="margin-top: 1rem; text-align: right;">
+                <button class="btn btn-outline" onclick="closeModal('payrollModal')" style="padding: 0.5rem 1rem; font-size: 14px;">Close</button>
             </div>
         </div>
     </div>
@@ -1420,6 +1155,45 @@ function closeModal(id) {
                 submitButton.textContent = originalButtonText;
             });
         });
+        
+        // ==============================================
+        //  HANDLE LEAVE REQUEST APPROVE/REJECT
+        // ==============================================
+        function handleLeaveAction(action, leaveRequestId) {
+            if (!confirm(`Are you sure you want to ${action} this leave request?`)) {
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('action', action);
+            formData.append('leaveRequestId', leaveRequestId);
+            
+            fetch('index.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    showModal('Success', data.message, 'success');
+                    // Reload page after 1.5 seconds to refresh the pending approvals table
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    showModal('Error', data.message || 'An error occurred.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showModal('Error', 'A connection error occurred. Please try again.', 'error');
+            });
+        }
         
     </script>
     <script src="../js/app.js"></script>
