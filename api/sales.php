@@ -19,23 +19,21 @@ $method = $_SERVER['REQUEST_METHOD'];
 try {
     switch ($action) {
         case 'get_orders':
-            $storeId = $_GET['store_id'] ?? $_SESSION['store_id'];
+            $storeId = $_GET['store_id'] ?? $_SESSION['store_id'] ?? null;
             $status = $_GET['status'] ?? null;
-            $limit = $_GET['limit'] ?? 50;
-            $offset = $_GET['offset'] ?? 0;
+            $limit = (int)($_GET['limit'] ?? 50);
+            $offset = (int)($_GET['offset'] ?? 0);
             
-            $query = "SELECT s.*, CONCAT(c.FirstName, ' ', COALESCE(c.LastName, '')) as CustomerName FROM Sales s LEFT JOIN Customers c ON s.CustomerID = c.CustomerID WHERE s.StoreID = ?";
-            $params = [$storeId];
-            
-            if ($status) {
-                $query .= " AND s.PaymentStatus = ?";
-                $params[] = $status;
-            }
-            
+            $query = "SELECT s.SaleID, s.CustomerID, s.StoreID, s.SaleDate, s.TotalAmount, s.TaxAmount, s.DiscountAmount, s.PaymentStatus, s.PaymentMethod,
+                             CONCAT(c.FirstName, ' ', COALESCE(c.LastName, '')) AS CustomerName
+                      FROM sales s
+                      LEFT JOIN customers c ON s.CustomerID = c.CustomerID
+                      WHERE 1=1";
+            $params = [];
+            if ($storeId) { $query .= " AND s.StoreID = ?"; $params[] = $storeId; }
+            if ($status) { $query .= " AND s.PaymentStatus = ?"; $params[] = $status; }
             $query .= " ORDER BY s.SaleDate DESC LIMIT ? OFFSET ?";
-            $params[] = $limit;
-            $params[] = $offset;
-            
+            $params[] = $limit; $params[] = $offset;
             $orders = dbFetchAll($query, $params);
             jsonResponse(['success' => true, 'data' => $orders]);
             break;
@@ -62,8 +60,8 @@ try {
             $saleId = $_GET['sale_id'] ?? null;
             if (!$saleId) throw new Exception('Sale ID required');
             
-            $sale = dbFetchOne("SELECT * FROM Sales WHERE SaleID = ?", [$saleId]);
-            $details = dbFetchAll("SELECT * FROM SaleDetails WHERE SaleID = ?", [$saleId]);
+            $sale = dbFetchOne("SELECT * FROM sales WHERE SaleID = ?", [$saleId]);
+            $details = dbFetchAll("SELECT * FROM saledetails WHERE SaleID = ?", [$saleId]);
             
             jsonResponse(['success' => true, 'data' => ['sale' => $sale, 'details' => $details]]);
             break;
@@ -120,11 +118,7 @@ try {
             $date = $_GET['date'] ?? date('Y-m-d');
             $storeId = $_GET['store_id'] ?? $_SESSION['store_id'] ?? null;
             
-            $db = getDB();
-            $query = "SELECT DATE(SaleDate) as date, COUNT(*) as count, SUM(TotalAmount) as total 
-                     FROM sales WHERE StoreID = ? AND DATE(SaleDate) = ? GROUP BY DATE(SaleDate)";
-            $result = $db->fetchOne($query, [$storeId, $date]);
-            
+            $result = dbFetchOne("SELECT DATE(SaleDate) as date, COUNT(*) as count, SUM(TotalAmount) as total FROM sales WHERE (? IS NULL OR StoreID = ?) AND DATE(SaleDate) = ? GROUP BY DATE(SaleDate)", [$storeId, $storeId, $date]);
             jsonResponse(['success' => true, 'data' => $result ?? ['count' => 0, 'total' => 0, 'date' => $date]]);
             break;
 
