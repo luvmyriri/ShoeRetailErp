@@ -1,15 +1,6 @@
 <?php
 session_start();
 
-header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
-header('Cache-Control: post-check=0, pre-check=0', false);
-header('Pragma: no-cache');
-
-if (!isset($_SESSION['user_id'])) {
-    header('Location: /ShoeRetailErp/login.php');
-    exit;
-}
-
 require __DIR__ . '/../../config/database.php';
 
 function add_alert($type, $msg) {
@@ -24,10 +15,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $customer_id = !empty($_POST['customerId']) ? intval($_POST['customerId']) : null;
         $store_id = !empty($_POST['storeId']) ? intval($_POST['storeId']) : null;
         $payment_method = $_POST['paymentMethod'] ?? 'Cash';
-        $discount = floatval($_POST['discountAmount'] ?? 0);
-        $points_used = floatval($_POST['pointsUsed'] ?? 0);
+        $discount = (float)($_POST['discountAmount'] ?? 0);
+        $points_used = (int)($_POST['pointsUsed'] ?? 0);
         $notes = $_POST['saleNotes'] ?? '';
-        $user_id = $_SESSION['user_id'];
+        $user_id = $_SESSION['user_id'] ?? null;
         $sale_items_json = $_POST['sale_items_json'] ?? '[]';
 
         $sale_items = json_decode($sale_items_json, true);
@@ -37,98 +28,118 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        // compute totals
         $subtotal = 0.0;
         foreach ($sale_items as $it) {
-            $qty = floatval($it['quantity'] ?? 0);
-            $price = floatval($it['price'] ?? 0);
+            $qty = (float)($it['quantity'] ?? 0);
+            $price = (float)($it['price'] ?? 0);
             $subtotal += $qty * $price;
         }
-        $total_discount = $discount + $points_used;
-        $taxable = max(0.0, $subtotal - $total_discount);
-        $tax = $taxable * 0.10;
-        $total = $taxable + $tax;
+        $taxable = max(0.0, $subtotal - ($discount + $points_used));
+        $tax = round($taxable * 0.10, 2);
+        $total = round($taxable + $tax, 2);
 
         $db = getDB();
         $db->beginTransaction();
 
         try {
-            $sale_id = $db->insert("
-                INSERT INTO sales
-                    (CustomerID, StoreID, TotalAmount, TaxAmount, DiscountAmount, PaymentMethod, SaleDate)
-                VALUES (?, ?, ?, ?, ?, ?, NOW())
-            ", [$customer_id, $store_id, $total, $tax, $discount, $payment_method]);
+            // Insert sales (PascalCase columns)
+            $sale_id = $db->insert(
+                "INSERT INTO sales (CustomerID, StoreID, TotalAmount, TaxAmount, DiscountAmount, PointsUsed, PointsEarned, PaymentStatus, PaymentMethod, SalespersonID, SaleDate) 
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+                [
+                    $customer_id, $store_id, $total, $tax, $discount, $points_used, 0,
+                    ($payment_method === 'Credit' ? 'Credit' : 'Paid'), $payment_method, $user_id
+                ]
+            );
 
+            // Insert line items and decrement inventory
             foreach ($sale_items as $it) {
-                $product_id = intval($it['product_id']);
-                $quantity = floatval($it['quantity']);
-                $unit_price = floatval($it['price']);
-                $line_subtotal = $quantity * $unit_price;
+                $product_id = (int)$it['product_id'];
+                $quantity = (float)$it['quantity'];
+                $unit_price = (float)$it['price'];
+                $line_subtotal = round($quantity * $unit_price, 2);
 
-                $db->execute("INSERT INTO saledetails (SaleID, ProductID, Quantity, SalesUnitID, QuantityBase, UnitPrice, Subtotal) VALUES (?, ?, ?, 1, ?, ?, ?)",
-                    [$sale_id, $product_id, $quantity, $quantity, $unit_price, $line_subtotal]);
+                $db->execute(
+                    "INSERT INTO saledetails (SaleID, ProductID, Quantity, SalesUnitID, QuantityBase, UnitPrice, Subtotal) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                    [$sale_id, $product_id, $quantity, 1, $quantity, $unit_price, $line_subtotal]
+                );
+
+                $db->execute(
+                    "UPDATE inventory SET Quantity = GREATEST(0, Quantity - ?) WHERE ProductID = ? AND StoreID = ?",
+                    [$quantity, $product_id, $store_id]
+                );
             }
 
-        
-// Create invoice if needed
-    if ($sale_id) {
-        $invoiceNumber = 'INV-' . date('Ymd') . '-' . str_pad($sale_id, 4, '0', STR_PAD_LEFT);
-        try {
+            // Create invoice (PascalCase columns)
+            $invoiceNumber = 'INV-' . date('Ymd') . '-' . str_pad($sale_id, 4, '0', STR_PAD_LEFT);
             $db->execute(
-                "INSERT INTO invoices 
-                    (SaleID, InvoiceNumber, InvoiceDate, TotalAmount, CreatedAt) 
-                 VALUES 
-                    (?, ?, NOW(), ?, NOW())",
-                [$sale_id, $invoiceNumber, $total]
+                "INSERT INTO invoices (InvoiceNumber, SaleID, CustomerID, StoreID, InvoiceDate, TotalAmount, TaxAmount, DiscountAmount, PaymentMethod, PaymentStatus, CreatedBy) 
+                 VALUES (?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?, ?)",
+                [
+                    $invoiceNumber, $sale_id, $customer_id, $store_id, $total, $tax, $discount,
+                    $payment_method, ($payment_method === 'Credit' ? 'Credit' : 'Paid'), (string)$user_id
+                ]
             );
-        } catch (Exception $invoiceEx) {
-            // Invoice table may not exist, continue with sale
-            logError("Invoice creation failed", ['error' => $invoiceEx->getMessage()]);
+
+            $db->commit();
+            add_alert('success', 'Sale processed successfully. Sale ID: #' . $sale_id);
+        } catch (Exception $ex) {
+            $db->rollback();
+            add_alert('danger', 'Failed to process sale: ' . $ex->getMessage());
         }
-    }
 
-
- $db->commit();
-    add_alert('success', 'Sale processed successfully. Sale ID: #' . $sale_id);
-} catch (Exception $ex) {
-    $db->rollback();
-    add_alert('danger', 'Failed to process sale: ' . $ex->getMessage());
-}
-
-header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
-exit;
+        header('Location: ' . strtok($_SERVER['REQUEST_URI'], '?'));
+        exit;
 
     } elseif ($action === 'process_return') {
-        $original_sale_id = intval($_POST['returnSaleId']);
+        $original_sale_id = (int)($_POST['returnSaleId'] ?? 0);
         $return_date = $_POST['returnDate'] ?? date('Y-m-d');
         $reason = $_POST['returnReason'] ?? '';
         $refund_method = $_POST['refundMethod'] ?? 'Cash';
         $return_items_json = $_POST['return_items_json'] ?? '[]';
-        $return_items = json_decode($return_items_json, true);
         $notes = $_POST['returnNotes'] ?? '';
-        $user_id = $_SESSION['user_id'];
+        $user_id = $_SESSION['user_id'] ?? null;
+        $return_items = json_decode($return_items_json, true);
 
-        if (!is_array($return_items) || count($return_items) === 0) {
-            add_alert('danger', 'Return must contain items.');
+        if ($original_sale_id <= 0 || !is_array($return_items) || count($return_items) === 0) {
+            add_alert('danger', 'Return must contain a valid Sale ID and at least one item.');
             header('Location: ' . $_SERVER['REQUEST_URI']);
             exit;
         }
 
+        // Compute refund totals (5% restocking fee)
+        $totalRefund = 0.0;
+        foreach ($return_items as $it) { $totalRefund += (float)($it['refund_amount'] ?? 0); }
+        $restockingFee = round($totalRefund * 0.05, 2);
+        $netRefund = round($totalRefund - $restockingFee, 2);
+
+        // Fetch sale header for customer/store
+        $saleHdr = dbFetchOne("SELECT CustomerID, StoreID FROM sales WHERE SaleID = ?", [$original_sale_id]);
+        $customer_id = $saleHdr['CustomerID'] ?? null;
+        $store_id = $saleHdr['StoreID'] ?? null;
+
         $db = getDB();
         $db->beginTransaction();
         try {
-            $return_id = $db->insert("
-                INSERT INTO returns (SaleID, ReturnDate, Reason, RefundMethod, notes, CreatedAt)
-                VALUES (?, ?, ?, ?, ?, NOW())
-            ", [$original_sale_id, $return_date, $reason, $refund_method, $notes]);
+            // Insert return summary (PascalCase columns)
+            $return_id = $db->insert(
+                "INSERT INTO returns (SaleID, CustomerID, StoreID, ReturnDate, Reason, RefundMethod, RefundAmount, RestockingFee, NetRefund, Status, ProcessedBy, Notes, CreatedAt)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())",
+                [
+                    $original_sale_id, $customer_id, $store_id, $return_date, $reason, $refund_method,
+                    $totalRefund, $restockingFee, $netRefund, 'Completed', $user_id, substr($notes,0,1000)
+                ]
+            );
 
+            // Update inventory for each returned item
             foreach ($return_items as $it) {
-                $product_id = intval($it['product_id']);
-                $quantity = floatval($it['quantity']);
-                $refund_amount = floatval($it['refund_amount'] ?? 0);
-                $reason_detail = $it['reason_detail'] ?? '';
-
-                $db->execute("INSERT INTO return_items (ReturnID, ProductID, Quantity, RefundAmount, ReasonDetail) VALUES (?, ?, ?, ?, ?)",
-                    [$return_id, $product_id, $quantity, $refund_amount, $reason_detail]);
+                $product_id = (int)$it['product_id'];
+                $quantity = (float)$it['quantity'];
+                $db->execute(
+                    "UPDATE inventory SET Quantity = Quantity + ? WHERE ProductID = ? AND StoreID = ?",
+                    [$quantity, $product_id, $store_id]
+                );
             }
 
             $db->commit();
@@ -158,7 +169,6 @@ $today = date('Y-m-d');
 $stats = ['today_sales' => 0, 'orders_today' => 0, 'unique_customers_today' => 0, 'avg_rating' => 0];
 
 try {
-    // Check if sales table exists and has correct columns
     $row = dbFetchOne("SELECT IFNULL(SUM(TotalAmount),0) AS total FROM sales WHERE DATE(SaleDate) = ?", [$today]);
     $stats['today_sales'] = $row['total'] ?? 0;
 
@@ -167,105 +177,71 @@ try {
 
     $row = dbFetchOne("SELECT COUNT(DISTINCT CustomerID) AS cnt FROM sales WHERE DATE(SaleDate) = ?", [$today]);
     $stats['unique_customers_today'] = $row['cnt'] ?? 0;
+
+    $row = @dbFetchOne("SELECT AVG(rating) AS avg_rating FROM product_reviews");
+    $stats['avg_rating'] = $row && isset($row['avg_rating']) ? round((float)$row['avg_rating'], 2) : 0;
 } catch (Exception $e) {
     logError("Stats failed", ['error' => $e->getMessage()]);
 }
 
 // --- Fetch Data ---
-$customers = safe_query_assoc("SELECT CustomerID AS id, CONCAT(FirstName, ' ', LastName) AS name, MemberNumber AS member_code FROM customers ORDER BY FirstName, LastName");
+$customers = safe_query_assoc("SELECT CustomerID AS id, CONCAT(FirstName, ' ', COALESCE(LastName,'')) AS name, MemberNumber AS member_code FROM customers ORDER BY name");
 $stores = safe_query_assoc("SELECT StoreID AS id, StoreName AS name FROM stores ORDER BY StoreName");
-$products = safe_query_assoc("SELECT ProductID AS id, SKU AS sku, Model AS name, SellingPrice AS price FROM products ORDER BY Model");
+$products = safe_query_assoc("SELECT p.ProductID AS id, p.SKU AS sku, CONCAT(p.Brand,' ',p.Model,' ',p.Size) AS name, p.SellingPrice AS price, COALESCE(SUM(i.Quantity),0) AS stock FROM products p LEFT JOIN inventory i ON i.ProductID = p.ProductID GROUP BY p.ProductID ORDER BY name");
 
-// --- Orders with Items (if sales table exists) ---
-$orders = [];
-try {
-    $orders = safe_query_assoc("
-        SELECT s.SaleID AS sale_id, s.TotalAmount, s.TaxAmount AS tax, s.DiscountAmount AS discount, s.PaymentMethod AS payment_method, s.SaleDate AS created_at,
-               c.FirstName AS cust_first, c.LastName AS cust_last, st.StoreName AS store_name
-        FROM sales s
-        LEFT JOIN customers c ON s.CustomerID = c.CustomerID
-        LEFT JOIN stores st ON s.StoreID = st.StoreID
-        ORDER BY s.SaleDate DESC
-        LIMIT 50
-    ");
-} catch (Exception $e) {
-    logError("Orders query failed", ['error' => $e->getMessage()]);
-}
+// --- Orders with Items ---
+$orders = safe_query_assoc(" 
+    SELECT s.SaleID AS sale_id, s.TotalAmount AS total_amount, s.TaxAmount AS tax, s.DiscountAmount AS discount, s.PaymentMethod AS payment_method, s.SaleDate AS created_at, s.PaymentStatus AS status,
+           c.FirstName AS cust_first, c.LastName AS cust_last, st.StoreName AS store_name, st.StoreID AS store_id
+    FROM sales s
+    LEFT JOIN customers c ON s.CustomerID = c.CustomerID
+    LEFT JOIN stores st ON s.StoreID = st.StoreID
+    ORDER BY s.SaleDate DESC
+    LIMIT 50
+");
 
 foreach ($orders as &$o) {
-    try {
-        $o['items'] = safe_query_assoc("
-            SELECT sd.Quantity AS quantity, sd.UnitPrice AS unit_price, p.Model AS product_name
-            FROM saledetails sd
-            JOIN products p ON sd.ProductID = p.ProductID
-            WHERE sd.SaleID = ?
-        ", [$o['sale_id']]);
-    } catch (Exception $e) {
-        $o['items'] = [];
-    }
+$o['items'] = safe_query_assoc("
+        SELECT sd.Quantity AS quantity, sd.UnitPrice AS unit_price, CONCAT(p.Brand,' ',p.Model) AS product_name
+        FROM saledetails sd
+        JOIN products p ON sd.ProductID = p.ProductID
+        WHERE sd.SaleID = ?
+    ", [$o['sale_id']]);
 }
 unset($o);
 
-// --- Invoices with Items (if invoices table exists) ---
-$invoices = [];
-try {
-    $invoices = safe_query_assoc("
-        SELECT i.InvoiceID AS id, i.InvoiceNumber AS invoice_number, i.SaleID AS sale_id, i.TotalAmount AS total_amount, i.InvoiceDate AS invoice_date,
-               s.PaymentMethod AS payment_method, c.FirstName AS cust_first, c.LastName AS cust_last, st.StoreName AS store_name
-        FROM invoices i
-        JOIN sales s ON i.SaleID = s.SaleID
-        LEFT JOIN customers c ON s.CustomerID = c.CustomerID
-        LEFT JOIN stores st ON s.StoreID = st.StoreID
-        ORDER BY i.InvoiceDate DESC
-        LIMIT 50
-    ");
-} catch (Exception $e) {
-    logError("Invoices query failed", ['error' => $e->getMessage()]);
-}
+// --- Invoices with Items ---
+$invoices = safe_query_assoc(" 
+    SELECT i.InvoiceID AS id, i.InvoiceNumber AS invoice_number, i.SaleID AS sale_id, i.TotalAmount AS total_amount, i.InvoiceDate AS invoice_date,
+           i.PaymentMethod, i.PaymentStatus AS payment_status, c.FirstName AS cust_first, c.LastName AS cust_last, st.StoreName AS store_name
+    FROM invoices i
+    JOIN sales s ON i.SaleID = s.SaleID
+    LEFT JOIN customers c ON s.CustomerID = c.CustomerID
+    LEFT JOIN stores st ON s.StoreID = st.StoreID
+    ORDER BY i.InvoiceDate DESC
+    LIMIT 50
+");
 
 foreach ($invoices as &$inv) {
-    try {
-        $inv['items'] = safe_query_assoc("
-            SELECT ii.Quantity AS quantity, ii.UnitPrice AS unit_price, p.Model AS product_name
-            FROM invoiceitems ii
-            JOIN products p ON ii.ProductID = p.ProductID
-            WHERE ii.InvoiceID = ?
-        ", [$inv['id']]);
-    } catch (Exception $e) {
-        $inv['items'] = [];
-    }
+$inv['items'] = safe_query_assoc("
+        SELECT sd.Quantity AS quantity, sd.UnitPrice AS unit_price, CONCAT(p.Brand,' ',p.Model) AS product_name
+        FROM saledetails sd
+        JOIN products p ON sd.ProductID = p.ProductID
+        WHERE sd.SaleID = ?
+    ", [$inv['sale_id']]);
 }
 unset($inv);
 
-// --- Returns (if returns table exists) ---
-$returns = [];
-try {
-    $returns = safe_query_assoc("
-        SELECT r.ReturnID AS id, r.SaleID AS sale_id, r.ReturnDate AS return_date, r.Reason AS reason,
-               c.FirstName AS cust_first, c.LastName AS cust_last
-        FROM returns r
-        JOIN sales s ON r.SaleID = s.SaleID
-        LEFT JOIN customers c ON s.CustomerID = c.CustomerID
-        ORDER BY r.ReturnDate DESC
-        LIMIT 50
-    ");
-} catch (Exception $e) {
-    logError("Returns query failed", ['error' => $e->getMessage()]);
-}
-// --- Navbar Active Link Logic --- 
-$current_page = basename($_SERVER['PHP_SELF']);
-$current_dir = basename(dirname($_SERVER['PHP_SELF']));
-
-// Map directories to nav items
-$nav_map = [
-    'index' => 'index.php' === $current_page && dirname($_SERVER['PHP_SELF']) === dirname(__DIR__),
-    'inventory' => $current_dir === 'inventory',
-    'sales' => $current_dir === 'sales',
-    'procurement' => $current_dir === 'procurement',
-    'accounting' => $current_dir === 'accounting',
-    'customers' => $current_dir === 'customers',
-    'hr' => $current_dir === 'hr',
-];
+// --- Returns ---
+$returns = safe_query_assoc("
+    SELECT r.ReturnID AS id, r.SaleID AS sale_id, r.ReturnDate AS return_date, r.Reason AS reason, r.NetRefund AS refund_amount,
+           c.FirstName AS cust_first, c.LastName AS cust_last
+    FROM returns r
+    JOIN sales s ON r.SaleID = s.SaleID
+    LEFT JOIN customers c ON s.CustomerID = c.CustomerID
+    ORDER BY r.ReturnDate DESC
+    LIMIT 50
+");
 ?>
 
 <!DOCTYPE html>
@@ -285,19 +261,47 @@ $nav_map = [
         .action-buttons { display: flex; gap: 0.5rem; justify-content: center; }
         .table td:last-child { text-align: center; }
         .btn-sm { padding: 0.25rem 0.75rem; font-size: 0.875rem; }
-        .modal { display: none; align-items: center; justify-content: center; position: fixed; inset:0; background: rgba(0,0,0,0.4); z-index: 9999; }
-        .modal.active { display: flex; }
+
+        /* ======= Modal fixes for Sales (New Sale, Process Return, View Details) ======= */
+        body.modal-open { overflow: hidden; }
+
+        /* Backdrop + centering */
+        .modal { position: fixed; inset: 0; width: 100vw; height: 100vh; transform: none; display: none; background: rgba(0,0,0,0.45); z-index: 10000; }
+        .modal.active { display: flex; align-items: center; justify-content: center; }
+        /* Force ID-scoped centering to override any global modal rules */
+        #newSaleModal, #returnModal, #detailModal { position: fixed !important; top:0 !important; left:0 !important; right:0 !important; bottom:0 !important; width:100vw !important; height:100vh !important; display:none; background: rgba(0,0,0,0.45); z-index:10000; }
+        #newSaleModal.active, #returnModal.active, #detailModal.active { display:flex !important; align-items:center !important; justify-content:center !important; }
+
+        /* Shared content container */
+        #newSaleModal .modal-content, #returnModal .modal-content, #detailModal .modal-content { margin: 0 auto !important; }
+        .modal .modal-content { width: 95%; max-height: 85vh; overflow: auto; border-radius: 10px; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,.15); }
+        /* Size variants */
+        #newSaleModal .modal-content, #returnModal .modal-content { max-width: 960px; }
+        #detailModal .modal-content { max-width: 800px; }
+
+        /* Sticky header inside modals for better UX while scrolling */
+        .modal .modal-header { position: sticky; top: 0; background: #fff; z-index: 1; padding: 1rem 1.25rem; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; }
+        .modal .modal-body { padding: 1rem 1.25rem; }
+        .modal .modal-actions { padding: 1rem 1.25rem; border-top: 1px solid #eee; display: flex; gap: .5rem; justify-content: flex-end; }
+        .modal .close { cursor: pointer; font-size: 1.5rem; line-height: 1; color: #666; padding: .25rem .5rem; }
+        .modal .close:hover { color: #333; }
+
+        /* Product/Return item grids: wrap neatly on small screens */
+        .product-item { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr auto; gap: .5rem; align-items: end; }
+        @media (max-width: 900px) { .product-item { grid-template-columns: 1fr 1fr; align-items: start; } .product-item .form-group { margin-bottom: .25rem; } }
+
+        /* Inline alerts used on this page */
         .alert { padding: .75rem 1rem; border-radius: 6px; margin: 1rem; }
         .alert-success { background: #e6ffed; color: #1a7f37; border: 1px solid #b3f0c7; }
         .alert-danger { background: #ffe6e6; color: #a10d0d; border: 1px solid #ffb3b3; }
+
         .items-list { font-size: 0.85rem; line-height: 1.5; }
         .items-list div { padding: 2px 0; border-bottom: 1px dashed #eee; }
         .items-list div:last-child { border-bottom: none; }
     </style>
 </head>
 <body>
-    <div class="alert-container"></div>
-    <?php include '../includes/navbar.php'; ?>
+    <?php include __DIR__ . '/../includes/navbar.php'; ?>
 
     <div class="alert-container">
         <?php if (!empty($_SESSION['flash_alert'])): 
@@ -315,9 +319,11 @@ $nav_map = [
                     <h1>Sales Management</h1>
                     <div class="page-header-breadcrumb"><a href="/ShoeRetailErp/public/index.php">Home</a> / Sales</div>
                 </div>
-                <div class="page-header-actions">
-                     <a href="pos.php" style="text-decoration: none;">
-                    <button class="btn btn-primary">Point of Sale</button>
+                <div class="page-header-actions" style="display:flex; gap:.5rem; align-items:center;">
+                    <button class="btn btn-primary" type="button" onclick="openNewSaleModal()">New Sale</button>
+                    <a href="pos.php" style="text-decoration: none;">
+                        <button class="btn btn-secondary" type="button">Point of Sale</button>
+                    </a>
                 </div>
             </div>
 
@@ -424,11 +430,11 @@ $nav_map = [
                                     <?php if (empty($orders)): ?>
                                         <tr><td colspan="9" style="text-align:center; padding:1.5rem;">No sales yet</td></tr>
                                     <?php else: ?>
-                        <?php foreach ($orders as $o): 
+                                        <?php foreach ($orders as $o): 
                                             $custName = trim(($o['cust_first'] ?? '') . ' ' . ($o['cust_last'] ?? '')) ?: 'Walk-in';
-                                            $status = $o['PaymentStatus'] ?? 'Paid';
+                                            $status = $o['status'] ?? 'Paid';
                                         ?>
-                                            <tr>
+                                            <tr data-date="<?php echo htmlspecialchars(date('Y-m-d', strtotime($o['created_at']))); ?>" data-storeid="<?php echo (int)($o['store_id'] ?? 0); ?>" data-status="<?php echo htmlspecialchars($status); ?>" data-payment="<?php echo htmlspecialchars($o['payment_method'] ?? ''); ?>">
                                                 <td>#S<?php echo str_pad($o['sale_id'], 4, '0', STR_PAD_LEFT); ?></td>
                                                 <td><?php echo htmlspecialchars($custName); ?></td>
                                                 <td><?php echo htmlspecialchars($o['store_name'] ?? ''); ?></td>
@@ -444,12 +450,11 @@ $nav_map = [
                                                         <?php endforeach; ?>
                                                     </div>
                                                 </td>
-                                                <td>₱<?php echo number_format($o['TotalAmount'], 2); ?></td>
-                                                <td><?php echo htmlspecialchars($o['payment_method']); ?></td>
+                                                <td>₱<?php echo number_format($o['total_amount'], 2); ?></td>
+                                                <td><?php echo htmlspecialchars($o['payment_method'] ?? ($o['PaymentMethod'] ?? '')); ?></td>
                                                 <td><span class="badge <?php echo ($status === 'Paid' ? 'badge-success' : 'badge-warning'); ?>"><?php echo $status; ?></span></td>
                                                 <td>
                                                     <div class="action-buttons">
-                                                        <button class="btn btn-sm btn-primary" onclick="viewOrder(<?php echo $o['sale_id']; ?>)">View</button>
                                                         <button class="btn btn-sm btn-info" onclick="printInvoice(<?php echo $o['sale_id']; ?>)">Print</button>
                                                     </div>
                                                 </td>
@@ -520,10 +525,10 @@ $nav_map = [
                                     <?php if (empty($invoices)): ?>
                                         <tr><td colspan="9" style="text-align:center; padding:1.5rem;">No invoices yet</td></tr>
                                     <?php else: ?>
-                        <?php foreach ($invoices as $inv): 
+                                        <?php foreach ($invoices as $inv): 
                                             $cust = trim(($inv['cust_first'] ?? '') . ' ' . ($inv['cust_last'] ?? '')) ?: 'Walk-in';
                                         ?>
-                                        <tr>
+                                        <tr data-invoice-number="<?php echo htmlspecialchars($inv['invoice_number']); ?>" data-date="<?php echo htmlspecialchars(date('Y-m-d', strtotime($inv['invoice_date']))); ?>" data-status="<?php echo htmlspecialchars($inv['payment_status'] ?? ''); ?>">
                                             <td><?php echo htmlspecialchars($inv['invoice_number']); ?></td>
                                             <td>#S<?php echo str_pad($inv['sale_id'], 4, '0', STR_PAD_LEFT); ?></td>
                                             <td><?php echo htmlspecialchars($cust); ?></td>
@@ -540,11 +545,10 @@ $nav_map = [
                                                     <?php endforeach; ?>
                                                 </div>
                                             </td>
-                                            <td>₱<?php echo number_format($inv['TotalAmount'], 2); ?></td>
-                                            <td><?php echo htmlspecialchars($inv['payment_method']); ?></td>
+                                            <td>₱<?php echo number_format($inv['total_amount'], 2); ?></td>
+                                            <td><?php echo htmlspecialchars($inv['payment_method'] ?? ($inv['PaymentMethod'] ?? '')); ?></td>
                                             <td>
-                                                <div class="action-buttons">
-                                                    <button class="btn btn-sm btn-primary" onclick="viewInvoice(<?php echo $inv['id']; ?>)">View</button>
+                                            <div class="action-buttons">
                                                     <button class="btn btn-sm btn-info" onclick="printInvoice(<?php echo $inv['sale_id']; ?>)">Print</button>
                                                     <button class="btn btn-sm btn-secondary" onclick="downloadInvoice(<?php echo $inv['id']; ?>)">Download</button>
                                                 </div>
@@ -577,12 +581,11 @@ $nav_map = [
                                         <th>Date</th>
                                         <th>Reason</th>
                                         <th>Refund</th>
-                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php if (empty($returns)): ?>
-                                        <tr><td colspan="7" style="text-align:center;">No returns</td></tr>
+                                        <tr><td colspan="6" style="text-align:center;">No returns</td></tr>
                                     <?php else: foreach ($returns as $r): ?>
                                         <tr>
                                             <td>#R<?php echo str_pad($r['id'], 4, '0', STR_PAD_LEFT); ?></td>
@@ -591,7 +594,6 @@ $nav_map = [
                                             <td><?php echo date('M j, Y', strtotime($r['return_date'])); ?></td>
                                             <td><?php echo htmlspecialchars($r['reason']); ?></td>
                                             <td>₱<?php echo number_format($r['refund_amount'], 2); ?></td>
-                                            <td><button class="btn btn-sm btn-primary" onclick="viewReturn(<?php echo $r['id']; ?>)">View</button></td>
                                         </tr>
                                     <?php endforeach; endif; ?>
                                 </tbody>
@@ -650,6 +652,20 @@ $nav_map = [
             </div>
 
             <!-- MODALS -->
+            <!-- View Details Modal -->
+            <div id="detailModal" class="modal" aria-hidden="true">
+                <div class="modal-content" style="max-width:800px; width:95%;">
+                    <div class="modal-header">
+                        <h2 id="detailModalTitle">Details</h2>
+                        <span class="close" onclick="closeModal('detailModal')">×</span>
+                    </div>
+                    <div id="detailModalBody" class="modal-body" style="max-height:65vh; overflow:auto; padding:1rem;"></div>
+                    <div class="modal-actions" style="padding:1rem; display:flex; gap:.5rem; justify-content:flex-end;">
+                        <button class="btn btn-secondary" onclick="closeModal('detailModal')">Close</button>
+                    </div>
+                </div>
+            </div>
+
             <!-- New Sale Modal -->
             <div id="newSaleModal" class="modal">
                 <div class="modal-content">
@@ -835,6 +851,7 @@ $nav_map = [
         </main>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         // Tab navigation
         document.querySelectorAll('.nav-link').forEach(tab => {
@@ -848,10 +865,28 @@ $nav_map = [
             });
         });
 
-        // Modal open/close
-        function openNewSaleModal() { document.getElementById('newSaleModal').classList.add('active'); }
-        function openReturnModal() { document.getElementById('returnModal').classList.add('active'); }
-        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+        // Modal open/close (with body scroll lock)
+        function openNewSaleModal() {
+            document.getElementById('newSaleModal').classList.add('active');
+            document.body.classList.add('modal-open');
+        }
+        function openReturnModal() {
+            document.getElementById('returnModal').classList.add('active');
+            document.body.classList.add('modal-open');
+        }
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+            // If no more active modals, restore scroll
+            if (!document.querySelector('.modal.active')) {
+                document.body.classList.remove('modal-open');
+            }
+        }
+
+        // Close when clicking backdrop (outside content)
+        document.addEventListener('click', (e) => {
+            const m = e.target.closest('.modal');
+            if (m && e.target === m) { closeModal(m.id); }
+        });
 
         // Add product item
         function addProductItem() {
@@ -1038,20 +1073,134 @@ $nav_map = [
             e.target.submit();
         }
 
-        // Placeholder actions
-        function filterOrders() { console.log('Filtering orders...'); }
-        function filterInvoices() { console.log('Filtering invoices...'); }
-        function exportOrders() { console.log('Exporting orders...'); }
-        function exportInvoices() { console.log('Exporting invoices...'); }
-        function viewOrder(id) { alert('View Sale #' + id); }
-        function viewInvoice(id) { alert('View Invoice #' + id); }
-        function viewReturn(id) { alert('View Return #' + id); }
-        function printInvoice(id) { alert('Print Invoice for Sale #' + id); }
-        function downloadInvoice(id) { alert('Download Invoice #' + id); }
-        function generateReport() {
-            const type = document.getElementById('reportType').value;
-            document.getElementById('reportOutput').innerHTML = `<p><em>Loading ${type} report...</em></p>`;
+        // Filtering
+        function filterOrders(){
+          const df = document.getElementById('orderDateFrom').value;
+          const dt = document.getElementById('orderDateTo').value;
+          const storeId = document.getElementById('orderStore').value;
+          const status = document.getElementById('orderPaymentStatus').value;
+          const rows = document.querySelectorAll('#ordersTable tbody tr');
+          rows.forEach(tr => {
+            const d = tr.getAttribute('data-date') || '';
+            const s = tr.getAttribute('data-storeid') || '';
+            const st = tr.getAttribute('data-status') || '';
+            let ok = true;
+            if (df && d < df) ok = false;
+            if (ok && dt && d > dt) ok = false;
+            if (ok && storeId && s !== storeId) ok = false;
+            if (ok && status && st !== status) ok = false;
+            tr.style.display = ok ? '' : 'none';
+          });
         }
+        
+        // Export helpers (client-side)
+        const ORDERS_DATA = <?php echo json_encode($orders); ?>;
+        const INVOICES_DATA = <?php echo json_encode($invoices); ?>;
+        function toCSV(rows){ if(!rows||!rows.length) return ''; const headers = Object.keys(rows[0]); const esc=v=>`"${String(v??'').replace(/"/g,'""')}"`; const lines=[headers.join(',')]; rows.forEach(r=>lines.push(headers.map(h=>esc(r[h])).join(','))); return lines.join('\n'); }
+        function downloadCSV(name, csv){ const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'}); const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); URL.revokeObjectURL(url); a.remove(); }
+        function exportOrders(){ const csv = toCSV(ORDERS_DATA); downloadCSV('orders.csv', csv); }
+        function exportInvoices(){ const csv = toCSV(INVOICES_DATA); downloadCSV('invoices.csv', csv); }
+        
+        // Analytics charts
+        async function loadAnalytics(){
+          try{
+            const res = await fetch('sales_report_data.php');
+            const js = await res.json();
+            // Trend
+            const labels = (js.sales_trend||[]).map(r=>r.date).reverse();
+            const totals = (js.sales_trend||[]).map(r=>parseFloat(r.total||0)).reverse();
+            const ctx1 = document.getElementById('salesTrendChart');
+            if(ctx1 && window.Chart){ new Chart(ctx1, { type:'line', data:{ labels, datasets:[{label:'Daily Sales', data: totals, borderColor:'#714B67', backgroundColor:'rgba(113,75,103,0.2)', tension:.25 }]}, options:{ plugins:{legend:{display:true}}, scales:{y:{beginAtZero:true}} } }); }
+            // Payment methods
+            const pm = js.payment_methods || [];
+            const pmLabels = pm.map(x=>x.method||'Unknown');
+            const pmTotals = pm.map(x=>parseFloat(x.total||0));
+            const ctx2 = document.getElementById('paymentMethodsChart');
+            if(ctx2 && window.Chart){ new Chart(ctx2, { type:'doughnut', data:{ labels: pmLabels, datasets:[{ data: pmTotals, backgroundColor:['#714B67','#3B82F6','#10B981','#F59E0B','#EF4444','#6B7280'] }]}, options:{ plugins:{legend:{position:'bottom'}} } }); }
+          }catch(e){ console.warn('Analytics load failed', e); }
+        }
+        loadAnalytics();
+        
+async function generateReport(){
+          const type = document.getElementById('reportType').value || 'daily';
+          const out = document.getElementById('reportOutput');
+          out.innerHTML = '<em>Loading...</em>';
+          try{
+            const res = await fetch('sales_report_data.php');
+            const js = await res.json();
+            let rows = js.daily_summary || [];
+            // Aggregate for weekly/monthly/yearly
+            if(type!=='daily'){
+              const bucket = {};
+              rows.forEach(r=>{
+                const d = r.date||'';
+                let key = d;
+                if(type==='weekly'){
+                  key = d.slice(0,4) + '-W' + Math.ceil((new Date(d).getDate())/7);
+                } else if(type==='monthly'){
+                  key = d.slice(0,7);
+                } else if(type==='yearly'){
+                  key = d.slice(0,4);
+                }
+                if(!bucket[key]) bucket[key] = {date:key, orders:0, items_sold:0, revenue:0, tax:0, discounts:0};
+                bucket[key].orders += parseInt(r.orders||0);
+                bucket[key].items_sold += parseFloat(r.items_sold||0);
+                bucket[key].revenue += parseFloat(r.revenue||0);
+                bucket[key].tax += parseFloat(r.tax||0);
+                bucket[key].discounts += parseFloat(r.discounts||0);
+              });
+              rows = Object.values(bucket).sort((a,b)=>a.date.localeCompare(b.date));
+            }
+            const html = ['<table class="table"><thead><tr><th>Period</th><th>Orders</th><th>Items Sold</th><th>Revenue</th><th>Tax</th><th>Discounts</th><th>Avg Order</th></tr></thead><tbody>']
+              .concat(rows.map(r=>{
+                const avg = (r.orders? (r.revenue/r.orders):0);
+                return `<tr><td>${r.date}</td><td>${r.orders||0}</td><td>${r.items_sold||0}</td><td>₱${Number(r.revenue||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>₱${Number(r.tax||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>₱${Number(r.discounts||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td>₱${Number(avg).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`;
+              }))
+              .concat(['</tbody></table>']).join('');
+            out.innerHTML = html;
+          }catch(e){ out.innerHTML = '<span style=\"color:#a10d0d\">Failed to generate report.</span>'; }
+        }
+        function filterInvoices(){
+          const q = (document.getElementById('invoiceNumber').value || '').toLowerCase();
+          const df = document.getElementById('invoiceDateFrom').value;
+          const dt = document.getElementById('invoiceDateTo').value;
+          const status = document.getElementById('invoiceStatus').value;
+          const rows = document.querySelectorAll('#invoicesTable tbody tr');
+          rows.forEach(tr => {
+            const num = (tr.getAttribute('data-invoice-number') || '').toLowerCase();
+            const d = tr.getAttribute('data-date') || '';
+            const st = tr.getAttribute('data-status') || '';
+            let ok = true;
+            if (q && num.indexOf(q) === -1) ok = false;
+            if (ok && df && d < df) ok = false;
+            if (ok && dt && d > dt) ok = false;
+            if (ok && status && st !== status) ok = false;
+            tr.style.display = ok ? '' : 'none';
+          });
+        }
+        async function viewOrder(id) {
+          try{
+            const r = await fetch('../../api/sales.php?action=get_sale_details&sale_id='+id);
+            const js = await r.json();
+            if(!js.success) throw new Error(js.message||'Failed');
+            const s = js.data.sale||{}; const items = js.data.details||[];
+            const html = ['<div style=\'margin-bottom:.5rem\'><strong>Sale #S'+String(id).padStart(4,'0')+'</strong></div>',
+                          '<div>Date: '+(s.SaleDate||'')+'</div>',
+                          '<div>Payment: '+(s.PaymentMethod||'')+' ('+(s.PaymentStatus||'')+')</div>',
+                          '<div>Total: ₱'+Number(s.TotalAmount||0).toLocaleString(undefined,{minimumFractionDigits:2})+'</div>',
+                          '<hr>',
+                          '<table class="table"><thead><tr><th>Product</th><th>Qty</th><th>Unit Price</th><th>Subtotal</th></tr></thead><tbody>']
+                          .concat(items.map(it=>`<tr><td>${it.ProductID}</td><td>${it.Quantity}</td><td>₱${Number(it.UnitPrice||0).toFixed(2)}</td><td>₱${Number(it.Subtotal||0).toFixed(2)}</td></tr>`))
+                          .concat(['</tbody></table>']).join('');
+            document.getElementById('detailModalTitle').textContent = 'Sale Details';
+            document.getElementById('detailModalBody').innerHTML = html;
+            document.getElementById('detailModal').classList.add('active');
+          }catch(e){ alert('Failed to load sale: '+e.message); }
+        }
+        function viewInvoice(id) { document.getElementById('detailModalTitle').textContent='Invoice Details'; document.getElementById('detailModalBody').innerHTML = '<em>Open receipt from Orders to print.</em>'; document.getElementById('detailModal').classList.add('active'); }
+        function viewReturn(id) { document.getElementById('detailModalTitle').textContent='Return Details'; document.getElementById('detailModalBody').innerHTML = '<em>Return view coming soon.</em>'; document.getElementById('detailModal').classList.add('active'); }
+        function printInvoice(id) { window.open('receipt.php?sale_id=' + id, '_blank'); }
+        function downloadInvoice(id) { window.open('receipt.php?sale_id=' + id, '_blank'); }
 
         // Initialize
         calculateSaleTotal();

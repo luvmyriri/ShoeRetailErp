@@ -285,3 +285,184 @@
 [2025-11-02 19:19:02] Query failed Context: {"sql":"\r\n    SELECT r.id, r.sale_id, r.return_date, r.reason, r.refund_amount, \r\n           c.first_name AS cust_first, c.last_name AS cust_last\r\n    FROM returns r\r\n    JOIN sales s ON r.sale_id = s.id\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    ORDER BY r.return_date DESC\r\n    LIMIT 50\r\n","error":"Database query failed."}
 [2025-11-02 19:20:30] Stats failed Context: {"error":"Database query failed."}
 [2025-11-02 19:20:30] Query failed Context: {"sql":"\r\n        SELECT s.SaleID AS sale_id, s.subtotal, s.tax, s.discount, s.PaymentMethod AS payment_method, s.CreatedAt AS created_at,\r\n               c.FirstName AS cust_first, c.LastName AS cust_last, st.StoreName AS store_name\r\n        FROM sales s\r\n        LEFT JOIN customers c ON s.CustomerID = c.CustomerID\r\n        LEFT JOIN stores st ON s.StoreID = st.StoreID\r\n        ORDER BY s.CreatedAt DESC\r\n        LIMIT 50\r\n    ","error":"Database query failed."}
+[2025-11-05 15:15:36] Login system error Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-11-05 15:33:33] Login system error Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-11-05 15:34:44] Stats failed Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-11-05 15:34:44] Query failed Context: {"sql":"SELECT CustomerID AS id, CONCAT(FirstName, ' ', LastName) AS name, MemberNumber AS member_code FROM customers ORDER BY FirstName, LastName","error":"Database connection failed. Please check your configuration."}
+[2025-11-05 15:34:44] Query failed Context: {"sql":"SELECT StoreID AS id, StoreName AS name FROM stores ORDER BY StoreName","error":"Database connection failed. Please check your configuration."}
+[2025-11-05 15:34:44] Query failed Context: {"sql":"SELECT ProductID AS id, SKU AS sku, Model AS name, SellingPrice AS price FROM products ORDER BY Model","error":"Database connection failed. Please check your configuration."}
+[2025-11-05 15:34:44] Query failed Context: {"sql":"\r\n        SELECT s.SaleID AS sale_id, s.TotalAmount, s.TaxAmount AS tax, s.DiscountAmount AS discount, s.PaymentMethod AS payment_method, s.SaleDate AS created_at,\r\n               c.FirstName AS cust_first, c.LastName AS cust_last, st.StoreName AS store_name\r\n        FROM sales s\r\n        LEFT JOIN customers c ON s.CustomerID = c.CustomerID\r\n        LEFT JOIN stores st ON s.StoreID = st.StoreID\r\n        ORDER BY s.SaleDate DESC\r\n        LIMIT 50\r\n    ","error":"Database connection failed. Please check your configuration."}
+[2025-11-05 15:34:44] Query failed Context: {"sql":"\r\n        SELECT i.InvoiceID AS id, i.InvoiceNumber AS invoice_number, i.SaleID AS sale_id, i.TotalAmount AS total_amount, i.InvoiceDate AS invoice_date,\r\n               s.PaymentMethod AS payment_method, c.FirstName AS cust_first, c.LastName AS cust_last, st.StoreName AS store_name\r\n        FROM invoices i\r\n        JOIN sales s ON i.SaleID = s.SaleID\r\n        LEFT JOIN customers c ON s.CustomerID = c.CustomerID\r\n        LEFT JOIN stores st ON s.StoreID = st.StoreID\r\n        ORDER BY i.InvoiceDate DESC\r\n        LIMIT 50\r\n    ","error":"Database connection failed. Please check your configuration."}
+[2025-11-05 15:34:44] Query failed Context: {"sql":"\r\n        SELECT r.ReturnID AS id, r.SaleID AS sale_id, r.ReturnDate AS return_date, r.Reason AS reason,\r\n               c.FirstName AS cust_first, c.LastName AS cust_last\r\n        FROM returns r\r\n        JOIN sales s ON r.SaleID = s.SaleID\r\n        LEFT JOIN customers c ON s.CustomerID = c.CustomerID\r\n        ORDER BY r.ReturnDate DESC\r\n        LIMIT 50\r\n    ","error":"Database connection failed. Please check your configuration."}
+[2025-11-05 15:51:39] Failed login attempt Context: {"username":"cashier1"}
+[2025-11-05 15:51:46] Failed login attempt Context: {"username":"admin"}
+[2025-11-05 15:51:50] Failed login attempt Context: {"username":"admin"}
+[2025-11-05 16:23:13] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 16:23:13] Query failed Context: {"sql":"SELECT id, CONCAT(first_name, ' ', last_name) AS name, member_code FROM customers ORDER BY name","error":"Database query failed."}
+[2025-11-05 16:23:13] Query failed Context: {"sql":"SELECT id, name FROM stores ORDER BY name","error":"Database query failed."}
+[2025-11-05 16:23:13] Query failed Context: {"sql":"SELECT id, sku, name, price, stock FROM products ORDER BY name","error":"Database query failed."}
+[2025-11-05 16:23:13] Query failed Context: {"sql":"\r\n    SELECT s.id AS sale_id, s.total_amount, s.tax, s.discount, s.payment_method, s.created_at, s.status,\r\n           c.first_name AS cust_first, c.last_name AS cust_last, st.name AS store_name\r\n    FROM sales s\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    LEFT JOIN stores st ON s.store_id = st.id\r\n    ORDER BY s.created_at DESC\r\n    LIMIT 50\r\n","error":"Database query failed."}
+[2025-11-05 16:23:13] Query failed Context: {"sql":"\r\n    SELECT i.id, i.invoice_number, i.sale_id, i.total_amount, i.invoice_date,\r\n           s.payment_method, c.first_name AS cust_first, c.last_name AS cust_last, st.name AS store_name\r\n    FROM invoices i\r\n    JOIN sales s ON i.sale_id = s.id\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    LEFT JOIN stores st ON s.store_id = st.id\r\n    ORDER BY i.invoice_date DESC\r\n    LIMIT 50\r\n","error":"Database query failed."}
+[2025-11-05 16:23:13] Query failed Context: {"sql":"\r\n    SELECT r.id, r.sale_id, r.return_date, r.reason, r.refund_amount, \r\n           c.first_name AS cust_first, c.last_name AS cust_last\r\n    FROM returns r\r\n    JOIN sales s ON r.sale_id = s.id\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    ORDER BY r.return_date DESC\r\n    LIMIT 50\r\n","error":"Database query failed."}
+[2025-11-05 17:43:03] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 17:43:03] Query failed Context: {"sql":"SELECT id, CONCAT(first_name, ' ', last_name) AS name, member_code FROM customers ORDER BY name","error":"Database query failed."}
+[2025-11-05 17:43:03] Query failed Context: {"sql":"SELECT id, name FROM stores ORDER BY name","error":"Database query failed."}
+[2025-11-05 17:43:03] Query failed Context: {"sql":"SELECT id, sku, name, price, stock FROM products ORDER BY name","error":"Database query failed."}
+[2025-11-05 17:43:03] Query failed Context: {"sql":"\r\n    SELECT s.id AS sale_id, s.total_amount, s.tax, s.discount, s.payment_method, s.created_at, s.status,\r\n           c.first_name AS cust_first, c.last_name AS cust_last, st.name AS store_name\r\n    FROM sales s\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    LEFT JOIN stores st ON s.store_id = st.id\r\n    ORDER BY s.created_at DESC\r\n    LIMIT 50\r\n","error":"Database query failed."}
+[2025-11-05 17:43:03] Query failed Context: {"sql":"\r\n    SELECT i.id, i.invoice_number, i.sale_id, i.total_amount, i.invoice_date,\r\n           s.payment_method, c.first_name AS cust_first, c.last_name AS cust_last, st.name AS store_name\r\n    FROM invoices i\r\n    JOIN sales s ON i.sale_id = s.id\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    LEFT JOIN stores st ON s.store_id = st.id\r\n    ORDER BY i.invoice_date DESC\r\n    LIMIT 50\r\n","error":"Database query failed."}
+[2025-11-05 17:43:03] Query failed Context: {"sql":"\r\n    SELECT r.id, r.sale_id, r.return_date, r.reason, r.refund_amount, \r\n           c.first_name AS cust_first, c.last_name AS cust_last\r\n    FROM returns r\r\n    JOIN sales s ON r.sale_id = s.id\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    ORDER BY r.return_date DESC\r\n    LIMIT 50\r\n","error":"Database query failed."}
+[2025-11-05 17:43:31] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 17:43:31] Query failed Context: {"sql":"SELECT id, CONCAT(first_name, ' ', last_name) AS name, member_code FROM customers ORDER BY name","error":"Database query failed."}
+[2025-11-05 17:43:31] Query failed Context: {"sql":"SELECT id, name FROM stores ORDER BY name","error":"Database query failed."}
+[2025-11-05 17:43:31] Query failed Context: {"sql":"SELECT id, sku, name, price, stock FROM products ORDER BY name","error":"Database query failed."}
+[2025-11-05 17:43:31] Query failed Context: {"sql":"\r\n    SELECT s.id AS sale_id, s.total_amount, s.tax, s.discount, s.payment_method, s.created_at, s.status,\r\n           c.first_name AS cust_first, c.last_name AS cust_last, st.name AS store_name\r\n    FROM sales s\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    LEFT JOIN stores st ON s.store_id = st.id\r\n    ORDER BY s.created_at DESC\r\n    LIMIT 50\r\n","error":"Database query failed."}
+[2025-11-05 17:43:31] Query failed Context: {"sql":"\r\n    SELECT i.id, i.invoice_number, i.sale_id, i.total_amount, i.invoice_date,\r\n           s.payment_method, c.first_name AS cust_first, c.last_name AS cust_last, st.name AS store_name\r\n    FROM invoices i\r\n    JOIN sales s ON i.sale_id = s.id\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    LEFT JOIN stores st ON s.store_id = st.id\r\n    ORDER BY i.invoice_date DESC\r\n    LIMIT 50\r\n","error":"Database query failed."}
+[2025-11-05 17:43:31] Query failed Context: {"sql":"\r\n    SELECT r.id, r.sale_id, r.return_date, r.reason, r.refund_amount, \r\n           c.first_name AS cust_first, c.last_name AS cust_last\r\n    FROM returns r\r\n    JOIN sales s ON r.sale_id = s.id\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    ORDER BY r.return_date DESC\r\n    LIMIT 50\r\n","error":"Database query failed."}
+[2025-11-05 17:43:35] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 17:43:35] Query failed Context: {"sql":"SELECT id, CONCAT(first_name, ' ', last_name) AS name, member_code FROM customers ORDER BY name","error":"Database query failed."}
+[2025-11-05 17:43:35] Query failed Context: {"sql":"SELECT id, name FROM stores ORDER BY name","error":"Database query failed."}
+[2025-11-05 17:43:35] Query failed Context: {"sql":"SELECT id, sku, name, price, stock FROM products ORDER BY name","error":"Database query failed."}
+[2025-11-05 17:43:35] Query failed Context: {"sql":"\r\n    SELECT s.id AS sale_id, s.total_amount, s.tax, s.discount, s.payment_method, s.created_at, s.status,\r\n           c.first_name AS cust_first, c.last_name AS cust_last, st.name AS store_name\r\n    FROM sales s\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    LEFT JOIN stores st ON s.store_id = st.id\r\n    ORDER BY s.created_at DESC\r\n    LIMIT 50\r\n","error":"Database query failed."}
+[2025-11-05 17:43:35] Query failed Context: {"sql":"\r\n    SELECT i.id, i.invoice_number, i.sale_id, i.total_amount, i.invoice_date,\r\n           s.payment_method, c.first_name AS cust_first, c.last_name AS cust_last, st.name AS store_name\r\n    FROM invoices i\r\n    JOIN sales s ON i.sale_id = s.id\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    LEFT JOIN stores st ON s.store_id = st.id\r\n    ORDER BY i.invoice_date DESC\r\n    LIMIT 50\r\n","error":"Database query failed."}
+[2025-11-05 17:43:35] Query failed Context: {"sql":"\r\n    SELECT r.id, r.sale_id, r.return_date, r.reason, r.refund_amount, \r\n           c.first_name AS cust_first, c.last_name AS cust_last\r\n    FROM returns r\r\n    JOIN sales s ON r.sale_id = s.id\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    ORDER BY r.return_date DESC\r\n    LIMIT 50\r\n","error":"Database query failed."}
+[2025-11-05 17:58:38] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 18:03:37] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 18:03:37] Query failed Context: {"sql":"SELECT id, CONCAT(first_name, ' ', last_name) AS name, member_code FROM customers ORDER BY name","error":"Database query failed."}
+[2025-11-05 18:03:37] Query failed Context: {"sql":"SELECT id, name FROM stores ORDER BY name","error":"Database query failed."}
+[2025-11-05 18:03:37] Query failed Context: {"sql":"SELECT id, sku, name, price, stock FROM products ORDER BY name","error":"Database query failed."}
+[2025-11-05 18:03:37] Query failed Context: {"sql":"\r\n    SELECT s.id AS sale_id, s.total_amount, s.tax, s.discount, s.payment_method, s.created_at, s.status,\r\n           c.first_name AS cust_first, c.last_name AS cust_last, st.name AS store_name\r\n    FROM sales s\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    LEFT JOIN stores st ON s.store_id = st.id\r\n    ORDER BY s.created_at DESC\r\n    LIMIT 50\r\n","error":"Database query failed."}
+[2025-11-05 18:03:37] Query failed Context: {"sql":"\r\n    SELECT i.id, i.invoice_number, i.sale_id, i.total_amount, i.invoice_date,\r\n           s.payment_method, c.first_name AS cust_first, c.last_name AS cust_last, st.name AS store_name\r\n    FROM invoices i\r\n    JOIN sales s ON i.sale_id = s.id\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    LEFT JOIN stores st ON s.store_id = st.id\r\n    ORDER BY i.invoice_date DESC\r\n    LIMIT 50\r\n","error":"Database query failed."}
+[2025-11-05 18:03:37] Query failed Context: {"sql":"\r\n    SELECT r.id, r.sale_id, r.return_date, r.reason, r.refund_amount, \r\n           c.first_name AS cust_first, c.last_name AS cust_last\r\n    FROM returns r\r\n    JOIN sales s ON r.sale_id = s.id\r\n    LEFT JOIN customers c ON s.customer_id = c.id\r\n    ORDER BY r.return_date DESC\r\n    LIMIT 50\r\n","error":"Database query failed."}
+[2025-11-05 18:37:09] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 18:37:58] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 21:21:28] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 21:35:28] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 22:51:40] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:01:07] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:01:13] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:02:40] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:11:07] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:12:58] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:17:30] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:17:53] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:20:27] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:20:30] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:23:35] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:24:01] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:24:02] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:24:02] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:24:02] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:24:02] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:24:06] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:27:05] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:27:10] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:27:18] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:27:18] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:27:19] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:27:40] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:27:47] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:32:17] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:32:41] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:33:44] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:34:36] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:37:49] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:37:49] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:40:59] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:45:27] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:45:38] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:45:39] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:45:39] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:45:50] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:45:55] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:46:05] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:46:44] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:48:37] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:48:38] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:52:39] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:52:46] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:54:36] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:54:36] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:54:36] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:54:36] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:54:40] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:54:40] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:54:40] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:54:40] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:57:48] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:57:55] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:57:59] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:58:05] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:58:05] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:58:09] Stats failed Context: {"error":"Database query failed."}
+[2025-11-05 23:58:20] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 00:05:15] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 00:05:24] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 00:08:45] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 00:08:46] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 00:10:58] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 00:12:53] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 00:13:05] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 00:13:32] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 00:13:49] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:15:52] Stats failed Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:15:56] Query failed Context: {"sql":"SELECT CustomerID AS id, CONCAT(FirstName, ' ', COALESCE(LastName,'')) AS name, MemberNumber AS member_code FROM customers ORDER BY name","error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:16:01] Query failed Context: {"sql":"SELECT StoreID AS id, StoreName AS name FROM stores ORDER BY StoreName","error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:16:05] Query failed Context: {"sql":"SELECT p.ProductID AS id, p.SKU AS sku, CONCAT(p.Brand,' ',p.Model,' ',p.Size) AS name, p.SellingPrice AS price, COALESCE(SUM(i.Quantity),0) AS stock FROM products p LEFT JOIN inventory i ON i.ProductID = p.ProductID GROUP BY p.ProductID ORDER BY name","error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:16:09] Query failed Context: {"sql":" \r\n    SELECT s.SaleID AS sale_id, s.TotalAmount AS total_amount, s.TaxAmount AS tax, s.DiscountAmount AS discount, s.PaymentMethod AS payment_method, s.SaleDate AS created_at, s.PaymentStatus AS status,\r\n           c.FirstName AS cust_first, c.LastName AS cust_last, st.StoreName AS store_name, st.StoreID AS store_id\r\n    FROM sales s\r\n    LEFT JOIN customers c ON s.CustomerID = c.CustomerID\r\n    LEFT JOIN stores st ON s.StoreID = st.StoreID\r\n    ORDER BY s.SaleDate DESC\r\n    LIMIT 50\r\n","error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:16:13] Query failed Context: {"sql":" \r\n    SELECT i.InvoiceID AS id, i.InvoiceNumber AS invoice_number, i.SaleID AS sale_id, i.TotalAmount AS total_amount, i.InvoiceDate AS invoice_date,\r\n           i.PaymentMethod, i.PaymentStatus AS payment_status, c.FirstName AS cust_first, c.LastName AS cust_last, st.StoreName AS store_name\r\n    FROM invoices i\r\n    JOIN sales s ON i.SaleID = s.SaleID\r\n    LEFT JOIN customers c ON s.CustomerID = c.CustomerID\r\n    LEFT JOIN stores st ON s.StoreID = st.StoreID\r\n    ORDER BY i.InvoiceDate DESC\r\n    LIMIT 50\r\n","error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:16:17] Query failed Context: {"sql":"\r\n    SELECT r.ReturnID AS id, r.SaleID AS sale_id, r.ReturnDate AS return_date, r.Reason AS reason, r.NetRefund AS refund_amount,\r\n           c.FirstName AS cust_first, c.LastName AS cust_last\r\n    FROM returns r\r\n    JOIN sales s ON r.SaleID = s.SaleID\r\n    LEFT JOIN customers c ON s.CustomerID = c.CustomerID\r\n    ORDER BY r.ReturnDate DESC\r\n    LIMIT 50\r\n","error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:16:21] sales_report_data failed Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:16:30] Stats failed Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:16:34] Query failed Context: {"sql":"SELECT CustomerID AS id, CONCAT(FirstName, ' ', COALESCE(LastName,'')) AS name, MemberNumber AS member_code FROM customers ORDER BY name","error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:16:39] Query failed Context: {"sql":"SELECT StoreID AS id, StoreName AS name FROM stores ORDER BY StoreName","error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:16:43] Query failed Context: {"sql":"SELECT p.ProductID AS id, p.SKU AS sku, CONCAT(p.Brand,' ',p.Model,' ',p.Size) AS name, p.SellingPrice AS price, COALESCE(SUM(i.Quantity),0) AS stock FROM products p LEFT JOIN inventory i ON i.ProductID = p.ProductID GROUP BY p.ProductID ORDER BY name","error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:16:47] Query failed Context: {"sql":" \r\n    SELECT s.SaleID AS sale_id, s.TotalAmount AS total_amount, s.TaxAmount AS tax, s.DiscountAmount AS discount, s.PaymentMethod AS payment_method, s.SaleDate AS created_at, s.PaymentStatus AS status,\r\n           c.FirstName AS cust_first, c.LastName AS cust_last, st.StoreName AS store_name, st.StoreID AS store_id\r\n    FROM sales s\r\n    LEFT JOIN customers c ON s.CustomerID = c.CustomerID\r\n    LEFT JOIN stores st ON s.StoreID = st.StoreID\r\n    ORDER BY s.SaleDate DESC\r\n    LIMIT 50\r\n","error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:16:51] Query failed Context: {"sql":" \r\n    SELECT i.InvoiceID AS id, i.InvoiceNumber AS invoice_number, i.SaleID AS sale_id, i.TotalAmount AS total_amount, i.InvoiceDate AS invoice_date,\r\n           i.PaymentMethod, i.PaymentStatus AS payment_status, c.FirstName AS cust_first, c.LastName AS cust_last, st.StoreName AS store_name\r\n    FROM invoices i\r\n    JOIN sales s ON i.SaleID = s.SaleID\r\n    LEFT JOIN customers c ON s.CustomerID = c.CustomerID\r\n    LEFT JOIN stores st ON s.StoreID = st.StoreID\r\n    ORDER BY i.InvoiceDate DESC\r\n    LIMIT 50\r\n","error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:16:55] Query failed Context: {"sql":"\r\n    SELECT r.ReturnID AS id, r.SaleID AS sale_id, r.ReturnDate AS return_date, r.Reason AS reason, r.NetRefund AS refund_amount,\r\n           c.FirstName AS cust_first, c.LastName AS cust_last\r\n    FROM returns r\r\n    JOIN sales s ON r.SaleID = s.SaleID\r\n    LEFT JOIN customers c ON s.CustomerID = c.CustomerID\r\n    ORDER BY r.ReturnDate DESC\r\n    LIMIT 50\r\n","error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:18:02] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:18:48] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:22:46] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:29:22] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:30:13] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:33:43] Stats failed Context: {"error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:33:47] Query failed Context: {"sql":"SELECT CustomerID AS id, CONCAT(FirstName, ' ', COALESCE(LastName,'')) AS name, MemberNumber AS member_code FROM customers ORDER BY name","error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:33:52] Query failed Context: {"sql":"SELECT StoreID AS id, StoreName AS name FROM stores ORDER BY StoreName","error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:33:56] Query failed Context: {"sql":"SELECT p.ProductID AS id, p.SKU AS sku, CONCAT(p.Brand,' ',p.Model,' ',p.Size) AS name, p.SellingPrice AS price, COALESCE(SUM(i.Quantity),0) AS stock FROM products p LEFT JOIN inventory i ON i.ProductID = p.ProductID GROUP BY p.ProductID ORDER BY name","error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:34:00] Query failed Context: {"sql":" \r\n    SELECT s.SaleID AS sale_id, s.TotalAmount AS total_amount, s.TaxAmount AS tax, s.DiscountAmount AS discount, s.PaymentMethod AS payment_method, s.SaleDate AS created_at, s.PaymentStatus AS status,\r\n           c.FirstName AS cust_first, c.LastName AS cust_last, st.StoreName AS store_name, st.StoreID AS store_id\r\n    FROM sales s\r\n    LEFT JOIN customers c ON s.CustomerID = c.CustomerID\r\n    LEFT JOIN stores st ON s.StoreID = st.StoreID\r\n    ORDER BY s.SaleDate DESC\r\n    LIMIT 50\r\n","error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:34:04] Query failed Context: {"sql":" \r\n    SELECT i.InvoiceID AS id, i.InvoiceNumber AS invoice_number, i.SaleID AS sale_id, i.TotalAmount AS total_amount, i.InvoiceDate AS invoice_date,\r\n           i.PaymentMethod, i.PaymentStatus AS payment_status, c.FirstName AS cust_first, c.LastName AS cust_last, st.StoreName AS store_name\r\n    FROM invoices i\r\n    JOIN sales s ON i.SaleID = s.SaleID\r\n    LEFT JOIN customers c ON s.CustomerID = c.CustomerID\r\n    LEFT JOIN stores st ON s.StoreID = st.StoreID\r\n    ORDER BY i.InvoiceDate DESC\r\n    LIMIT 50\r\n","error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:34:08] Query failed Context: {"sql":"\r\n    SELECT r.ReturnID AS id, r.SaleID AS sale_id, r.ReturnDate AS return_date, r.Reason AS reason, r.NetRefund AS refund_amount,\r\n           c.FirstName AS cust_first, c.LastName AS cust_last\r\n    FROM returns r\r\n    JOIN sales s ON r.SaleID = s.SaleID\r\n    LEFT JOIN customers c ON s.CustomerID = c.CustomerID\r\n    ORDER BY r.ReturnDate DESC\r\n    LIMIT 50\r\n","error":"Database connection failed. Please check your configuration."}
+[2025-11-06 03:34:41] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:36:56] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:37:11] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:40:11] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:41:43] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:41:47] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:41:52] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:44:36] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:47:32] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:47:32] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:47:32] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:47:32] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:47:32] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:47:32] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:47:56] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:48:14] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:48:32] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:48:53] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:50:42] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:50:43] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 03:50:58] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 16:20:41] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 16:21:01] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 16:31:44] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 17:21:47] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 17:21:52] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 17:24:14] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 17:27:23] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 17:29:57] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 17:29:58] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 17:29:58] Stats failed Context: {"error":"Database query failed."}
+[2025-11-06 17:32:22] Stats failed Context: {"error":"Database query failed."}
+[2025-11-08 04:13:17] Stats failed Context: {"error":"Database query failed."}
+[2025-11-08 04:13:24] Stats failed Context: {"error":"Database query failed."}
+[2025-11-08 10:23:03] Stats failed Context: {"error":"Database query failed."}
